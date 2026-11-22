@@ -76,6 +76,10 @@ python3 -m http.server 8080      # or: npx serve .
 
 > Service workers need `http://localhost` or HTTPS. Opening `index.html` from `file://` won't enable offline mode.
 
+### Build the demo copy
+
+`python3 demo/build.py out/` writes a self-contained preview that runs on built-in sample topics with no network access (used for the hosted preview). Live sources show a note instead of data.
+
 ### Deploy to GitHub Pages
 
 A workflow is included at `.github/workflows/pages.yml`. In the repo, go to **Settings → Pages → Source: GitHub Actions**, then push to `main`. The site will be served at `https://<user>.github.io/rexx.space/`. To use a custom domain, add a `CNAME` file containing it.

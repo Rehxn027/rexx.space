@@ -240,7 +240,7 @@ async function search(q) {
     const saved = await vault.get(vault.idFor(api.getLang(), q)).catch(() => null);
     if (saved) { location.replace(`#/read/${encodeURIComponent(saved.id)}`); return; }
     view.innerHTML = html`<section class="empty"><h2>Nothing found.</h2>
-      <p class="muted">${navigator.onLine ? `Nothing matched “${q}”. Try another spelling, or teleport somewhere random.` : 'You\'re offline and this isn\'t in your Vault yet.'}</p></section>`;
+      <p class="muted">${api.DEMO ? `“${q}” isn't one of this demo's sample topics. Try one of the topics in the note above.` : navigator.onLine ? `Nothing matched “${q}”. Try another spelling, or teleport somewhere random.` : 'You\'re offline and this isn\'t in your Vault yet.'}</p></section>`;
     return;
   }
 
@@ -296,7 +296,9 @@ async function search(q) {
   });
 
   const coordP = entityP.then((e) => e?.coord || coordFromSummary);
-  slot(mapEl, coordP, (c) => {
+  // The demo build can't embed the OpenStreetMap iframe, so it drops the map card.
+  if (api.DEMO) mapEl.closest('.card').remove();
+  else slot(mapEl, coordP, (c) => {
     if (!c) return '';
     const d = 0.6;
     return html`<iframe title="Map of ${title}" loading="lazy" src="https://www.openstreetmap.org/export/embed.html?bbox=${c.lon - d},${c.lat - d / 2},${c.lon + d},${c.lat + d / 2}&layer=mapnik&marker=${c.lat},${c.lon}"></iframe>
@@ -418,6 +420,10 @@ function pulse() {
 /* ───────────── Planet ───────────── */
 
 function planet() {
+  if (api.DEMO) {
+    view.innerHTML = html`<div class="grid">${raw(card('🌋 Live planet', raw('<p class="muted live-note">The live map of this week\'s earthquakes and the space station\'s position needs an internet connection, so it isn\'t part of this demo. Run the full app to see it.</p>'), { wide: true }))}</div>`;
+    return;
+  }
   // Zoom-1 OSM tiles stitched into a 512px world (Web Mercator), styled dark. Cached by the SW for offline.
   const tiles = [0, 1].flatMap((y) => [0, 1].map((x) => `<img src="https://tile.openstreetmap.org/1/${x}/${y}.png" alt="" style="left:${x * 50}%;top:${y * 50}%">`)).join('');
   view.innerHTML = html`<section class="planet">

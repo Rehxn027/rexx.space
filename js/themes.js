@@ -31,18 +31,26 @@ const store = {
   set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* storage blocked */ } },
 };
 
-/** "auto" resolves to Broadsheet or Broadsheet Night from the device setting. */
-const resolve = (id) => (id === 'auto' ? (dark.matches ? 'night' : 'paper') : id);
+/** Is the surrounding app (or OS) in dark mode? An embedding host may set data-theme="dark|light" on <html>. */
+function prefersDark() {
+  const host = document.documentElement.dataset.theme;
+  return host === 'dark' || (host !== 'light' && dark.matches);
+}
+
+/** "auto" resolves to Broadsheet or Broadsheet Night. */
+const resolve = (id) => (id === 'auto' ? (prefersDark() ? 'night' : 'paper') : id);
 
 export function applyTheme(id, { save = true } = {}) {
   chosen = THEMES.some((t) => t.id === id) ? id : 'auto';
   const t = THEMES.find((x) => x.id === resolve(chosen));
-  document.documentElement.dataset.theme = t.id;
+  document.documentElement.dataset.look = t.id;
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', t.color);
   if (save) store.set(KEY, chosen);
   document.querySelectorAll('.theme-opt').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.id === chosen)));
 }
-dark.addEventListener('change', () => { if (chosen === 'auto') applyTheme('auto'); });
+dark.addEventListener('change', () => { if (chosen === 'auto') applyTheme('auto', { save: false }); });
+new MutationObserver(() => { if (chosen === 'auto') applyTheme('auto', { save: false }); })
+  .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
 const optionsHTML = () => THEMES.map((t) => `
   <button type="button" class="theme-opt" data-id="${t.id}" aria-pressed="false">

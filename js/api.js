@@ -2,6 +2,9 @@
 // Every source here is free, keyless and CORS-friendly, so the whole app runs
 // as a static site (GitHub Pages) with no backend.
 
+/** True only in the self-contained demo build (sample data, no network). */
+export const DEMO = false;
+
 let LANG = 'en';
 export const setLang = (l) => { LANG = l; };
 export const getLang = () => LANG;

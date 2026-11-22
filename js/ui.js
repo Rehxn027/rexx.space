@@ -62,8 +62,13 @@ export function slot(el, promise, render, { emptyText } = {}) {
     }
     el.innerHTML = out;
   }).catch((err) => {
-    console.warn(err);
     const card = el.closest('.card');
+    if (err?.name === 'LiveOnly') {
+      if (card?.dataset.optional !== undefined) { card.remove(); return; }
+      el.innerHTML = '<p class="muted live-note">Live data. This section fills in when the full app is running with an internet connection.</p>';
+      return;
+    }
+    console.warn(err);
     if (!navigator.onLine) el.innerHTML = '<p class="muted">Offline — this source needs a connection. Saved items live in your Vault.</p>';
     else if (card?.dataset.optional !== undefined) card.remove();
     else el.innerHTML = '<p class="muted">This source didn\'t respond. Try again in a moment.</p>';
