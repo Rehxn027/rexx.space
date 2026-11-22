@@ -1,6 +1,16 @@
 /* rexx.space themes. Each one only redefines tokens from style.css, plus a few signature touches.
    "paper" is the default and lives in :root. */
 
+/* 1b · Broadsheet Night — the default's low-glare dark twin (used by "Auto" at night) */
+[data-theme="night"] {
+  --bg: #16140f; --surface: #1e1b15; --surface-solid: #1e1b15; --surface-2: #27231b;
+  --line: #36302a; --line-strong: #5a5246; --text: #ece6d9; --muted: #a59d8c; --faint: #6f6858;
+  --accent: #ff7a5c; --accent-2: #8fb0ff; --accent-soft: rgba(255, 122, 92, .12); --on-accent: #16140f; --highlight: #ff9a7f;
+  --ok: #6fcf97; --mid: #e0b050; --bad: #ff7a5c;
+  --map-filter: invert(.9) hue-rotate(180deg) saturate(.4) brightness(.9); --shadow-hover: 0 6px 20px rgba(0, 0, 0, .4);
+  color-scheme: dark;
+}
+
 /* 2 · Swiss Grid — International Typographic Style */
 [data-theme="swiss"] {
   --bg: #ffffff; --surface: #ffffff; --surface-solid: #fff; --surface-2: #f1f1f1;

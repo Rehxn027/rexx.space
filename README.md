@@ -40,9 +40,9 @@ Type anything, like *Marie Curie*, *Tokyo*, *black holes* or *the Moon landing*.
 
 Little extras: <kbd>/</kbd> focuses search, arrow keys move through suggestions, 🎲 **Teleport** opens a random article, and reduced-motion settings are respected.
 
-### 🎨 16 themes
+### 🎨 17 themes + Auto
 
-Pick one from the **Theme** button in the top bar: Broadsheet, Swiss Grid, Brutalist, Terminal, Fjord, Evergreen, Golden Hour, Prism, Graphite, Notebook, Retro OS, Old Atlas, Lagoon, Bubblegum, Ink and Sakura. Your choice is remembered. Fonts are self-hosted (`fonts/`, SIL OFL), so every theme works offline too.
+On first visit you get a **Pick your look** screen with a live preview. Change it any time with the **Theme** button or by pressing <kbd>t</kbd>. **Auto** (the default) uses Broadsheet by day and Broadsheet Night when your device is in dark mode. The full list: Broadsheet, Broadsheet Night, Swiss Grid, Brutalist, Terminal, Fjord, Evergreen, Golden Hour, Prism, Graphite, Notebook, Retro OS, Old Atlas, Lagoon, Bubblegum, Ink and Sakura. Your choice is remembered. Fonts are self-hosted (`fonts/`, SIL OFL), so every theme works offline too.
 
 ---
 
@@ -91,7 +91,7 @@ Open the site in Chrome, Edge or Safari, then choose **Install** or **Add to Hom
 ```
 index.html            app shell
 css/style.css         layout, driven entirely by design tokens
-css/themes.css        16 themes (each just redefines the tokens)
+css/themes.css        17 themes (each just redefines the tokens)
 css/fonts.css         self-hosted @font-face rules (fonts/ folder)
 js/app.js             router + views (Today, Search, Pulse, Planet, Vault, Offline)
 js/api.js             every data source; all free, keyless and CORS-enabled
