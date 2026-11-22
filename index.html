@@ -5,18 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>rexx.space — the world, in one search</title>
   <meta name="description" content="One search for everything: knowledge, people, places, live events and the social pulse of the internet. Installable, and works offline.">
-  <meta name="theme-color" content="#07040f">
+  <meta name="theme-color" content="#f6f1e7">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon.svg">
+  <script>try { document.documentElement.dataset.theme = localStorage.getItem('rexx-theme') || 'paper'; } catch (e) { document.documentElement.dataset.theme = 'paper'; }</script>
+  <link rel="stylesheet" href="css/fonts.css">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/themes.css">
 </head>
 <body>
-  <canvas id="stars" aria-hidden="true"></canvas>
-
   <header class="topbar">
     <a class="brand" href="#/" aria-label="rexx.space home">
-      <img src="icons/icon.svg" alt="" width="30" height="30">
+      <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--accent)"/><circle cx="14" cy="14" r="6.5" fill="none" stroke="var(--on-accent)" stroke-width="2.8"/><path d="M19 19l6 6" stroke="var(--on-accent)" stroke-width="3" stroke-linecap="round"/></svg>
       <span>rexx<b>.space</b></span>
     </a>
     <nav class="tabs" aria-label="Sections">
@@ -27,13 +28,15 @@
       <a href="#/offline" data-tab="offline">Offline</a>
     </nav>
     <span id="net" class="net" title="Connection status"></span>
+    <button id="theme-btn" class="theme-btn" type="button" aria-haspopup="true" aria-expanded="false" title="Change theme"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 1.5a6.5 6.5 0 0 1 0 13z" fill="currentColor"/></svg> Theme</button>
   </header>
+  <div id="theme-panel" class="theme-panel" hidden></div>
 
   <section class="hero" id="hero">
-    <h1 class="hero-title">Ask the <span class="shimmer">universe</span>.</h1>
+    <h1 class="hero-title">Ask <span class="accent-word">anything</span>.</h1>
     <p class="hero-sub">Events, people, places, ideas and the live social pulse — one search, pulled from the open internet.</p>
     <form id="search" class="omnibox" role="search" autocomplete="off">
-      <span class="omni-icon" aria-hidden="true">✦</span>
+      <span class="omni-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg></span>
       <input id="q" name="q" type="search" placeholder="Search anything — Marie Curie, Tokyo, black holes, the Moon landing…" aria-label="Search" spellcheck="false">
       <select id="lang" aria-label="Wikipedia language">
         <option value="en">EN</option><option value="es">ES</option><option value="fr">FR</option>

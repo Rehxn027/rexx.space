@@ -1,6 +1,6 @@
 import * as api from './api.js';
 import * as vault from './vault.js';
-import { starfield } from './stars.js';
+import { mountPicker } from './themes.js';
 import { html, raw, esc, $, $$, ago, compact, bytes, toast, skeleton, slot, mercator } from './ui.js';
 
 const view = $('#view');
@@ -10,7 +10,7 @@ const langSel = $('#lang');
 
 /* ───────────── boot ───────────── */
 
-starfield($('#stars'));
+mountPicker($('#theme-btn'), $('#theme-panel'));
 
 try { const l = localStorage.getItem('rexx-lang'); if (l) { langSel.value = l; api.setLang(l); } } catch { /* storage blocked */ }
 langSel.addEventListener('change', () => {
@@ -29,7 +29,7 @@ function netStatus() {
   el.className = `net ${navigator.onLine ? 'on' : 'off'}`;
   document.body.classList.toggle('is-offline', !navigator.onLine);
 }
-addEventListener('online', () => { netStatus(); toast('Back online — the universe is reachable again.'); });
+addEventListener('online', () => { netStatus(); toast('Back online.'); });
 addEventListener('offline', () => { netStatus(); toast('You\'re offline. Your Vault still works.'); });
 netStatus();
 
@@ -239,7 +239,7 @@ async function search(q) {
     // Offline? Look in the vault before giving up.
     const saved = await vault.get(vault.idFor(api.getLang(), q)).catch(() => null);
     if (saved) { location.replace(`#/read/${encodeURIComponent(saved.id)}`); return; }
-    view.innerHTML = html`<section class="empty"><h2>No signal from that corner of the universe.</h2>
+    view.innerHTML = html`<section class="empty"><h2>Nothing found.</h2>
       <p class="muted">${navigator.onLine ? `Nothing matched “${q}”. Try another spelling, or teleport somewhere random.` : 'You\'re offline and this isn\'t in your Vault yet.'}</p></section>`;
     return;
   }
@@ -487,7 +487,7 @@ async function offlineView() {
   const persisted = navigator.storage?.persisted ? await navigator.storage.persisted() : false;
 
   view.innerHTML = html`<section class="offline">
-    <header class="section-head"><h2>🛸 Offline mode</h2>
+    <header class="section-head"><h2>Offline mode</h2>
       <p class="muted">rexx.space is a Progressive Web App: the app itself is cached on your device, everything you open is remembered, and you can pack knowledge to carry with you.</p></header>
 
     <div class="grid">

@@ -1,0 +1,215 @@
+/* rexx.space themes. Each one only redefines tokens from style.css, plus a few signature touches.
+   "paper" is the default and lives in :root. */
+
+/* 2 · Swiss Grid — International Typographic Style */
+[data-theme="swiss"] {
+  --bg: #ffffff; --surface: #ffffff; --surface-solid: #fff; --surface-2: #f1f1f1;
+  --line: #e2e2e2; --line-strong: #0a0a0a; --text: #0a0a0a; --muted: #5e5e5e; --faint: #9a9a9a;
+  --accent: #e30613; --accent-2: #0a0a0a; --accent-soft: rgba(227, 6, 19, .08); --highlight: #e30613;
+  --font: 'Inter', system-ui, sans-serif; --display: 'Inter', system-ui, sans-serif;
+  --display-weight: 800; --display-tracking: -0.055em; --h3-color: #0a0a0a; --h3-size: 11px;
+  --radius: 0; --radius-sm: 0; --pill: 0; --title-fill: linear-gradient(#e30613, #e30613);
+}
+[data-theme="swiss"] .card { border: 0; border-top: 3px solid #0a0a0a; padding-left: 0; padding-right: 0; background: transparent; }
+[data-theme="swiss"] .hero { text-align: left; max-width: 1240px; margin: 0 auto; padding-left: clamp(16px, 4vw, 40px); }
+[data-theme="swiss"] .hero .omnibox, [data-theme="swiss"] .hero-sub { margin-left: 0; }
+[data-theme="swiss"] .hero-actions { justify-content: flex-start; }
+
+/* 3 · Brutalist — loud, blocky, honest */
+[data-theme="brutal"] {
+  --bg: #ffde59; --surface: #ffffff; --surface-solid: #fff; --surface-2: #fff6cf;
+  --line: #000; --line-strong: #000; --text: #000; --muted: #3a3a3a; --faint: #777;
+  --accent: #ff3e7f; --accent-2: #0040ff; --accent-soft: rgba(255, 62, 127, .18); --on-accent: #000; --highlight: #0040ff;
+  --font: 'Space Mono', ui-monospace, monospace; --display: 'Archivo Black', Impact, sans-serif; --display-weight: 400; --display-tracking: -0.02em;
+  --h3-color: #000; --radius: 0; --radius-sm: 0; --pill: 0; --border-w: 3px;
+  --shadow: 6px 6px 0 #000; --shadow-hover: 3px 3px 0 #000; --omni-shadow: 6px 6px 0 #000;
+  --btn-border: #000; --title-fill: linear-gradient(#ff3e7f, #ff3e7f);
+}
+[data-theme="brutal"] .card h3 { background: #000; color: #ffde59; display: inline-block; padding: 3px 8px; }
+[data-theme="brutal"] .accent-word { -webkit-text-stroke: 3px #000; }
+
+/* 4 · Terminal — green phosphor */
+[data-theme="terminal"] {
+  --bg: #050a06; --bg-image: repeating-linear-gradient(0deg, rgba(0, 0, 0, .28) 0 1px, transparent 1px 3px);
+  --surface: #08120a; --surface-solid: #08120a; --surface-2: #0e1e11;
+  --line: #1c3d22; --line-strong: #2bd65a; --text: #b6ffc6; --muted: #5fae73; --faint: #3a7048;
+  --accent: #39ff6a; --accent-2: #7fdbff; --accent-soft: rgba(57, 255, 106, .1); --on-accent: #021405; --highlight: #ffd75f;
+  --ok: #39ff6a; --mid: #ffd75f; --bad: #ff5f5f;
+  --font: 'JetBrains Mono', ui-monospace, monospace; --display: 'VT323', 'JetBrains Mono', monospace; --mono: 'JetBrains Mono', monospace;
+  --display-weight: 400; --display-tracking: 0; --h3-size: 12px;
+  --radius: 0; --radius-sm: 0; --pill: 2px; --title-fill: linear-gradient(#39ff6a, #39ff6a);
+  --map-filter: invert(1) hue-rotate(180deg) sepia(1) hue-rotate(70deg) saturate(2.5) brightness(.7);
+  color-scheme: dark;
+}
+[data-theme="terminal"] body { text-shadow: 0 0 6px rgba(57, 255, 106, .25); }
+[data-theme="terminal"] .hero-title { font-size: clamp(56px, 11vw, 120px); text-shadow: 0 0 18px rgba(57, 255, 106, .55); }
+[data-theme="terminal"] .card h3::before { content: "> "; }
+[data-theme="terminal"] .hero-title::after { content: "_"; color: #39ff6a; animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* 5 · Fjord — cool Nordic dusk */
+[data-theme="fjord"] {
+  --bg: #2e3440; --surface: #3b4252; --surface-solid: #3b4252; --surface-2: #434c5e;
+  --line: #4c566a; --line-strong: #5e6a82; --text: #eceff4; --muted: #a8b2c6; --faint: #7b869c;
+  --accent: #88c0d0; --accent-2: #8fbcbb; --accent-soft: rgba(136, 192, 208, .16); --on-accent: #2e3440; --highlight: #ebcb8b;
+  --ok: #a3be8c; --mid: #ebcb8b; --bad: #bf616a;
+  --font: 'IBM Plex Sans', system-ui, sans-serif; --display: 'IBM Plex Sans', system-ui, sans-serif; --display-weight: 600; --display-tracking: -0.025em;
+  --radius: 14px; --radius-sm: 8px; --title-fill: linear-gradient(90deg, #88c0d0, #b48ead);
+  --map-filter: invert(.92) hue-rotate(180deg) saturate(.4) brightness(.95);
+  --shadow: 0 1px 0 rgba(255, 255, 255, .04) inset; color-scheme: dark;
+}
+
+/* 6 · Evergreen — forest library */
+[data-theme="forest"] {
+  --bg: #12241b; --bg-image: radial-gradient(900px 500px at 80% -10%, rgba(227, 177, 91, .12), transparent 60%);
+  --surface: #193024; --surface-solid: #193024; --surface-2: #213a2d;
+  --line: #2d4a3a; --line-strong: #4a6b58; --text: #f0ead8; --muted: #a9b9a2; --faint: #74896f;
+  --accent: #e3b15b; --accent-2: #9fd3a6; --accent-soft: rgba(227, 177, 91, .14); --on-accent: #12241b; --highlight: #e3b15b;
+  --ok: #9fd3a6; --mid: #e3b15b; --bad: #ef8a73;
+  --font: 'Karla', system-ui, sans-serif; --display: 'Cormorant Garamond', Georgia, serif; --display-weight: 600; --display-tracking: -0.01em;
+  --h3-font: 'Karla', sans-serif; --radius: 10px; --radius-sm: 6px;
+  --map-filter: invert(.9) hue-rotate(120deg) saturate(.5) brightness(.9); color-scheme: dark;
+}
+[data-theme="forest"] .hero-title { font-size: clamp(52px, 9vw, 104px); font-style: italic; }
+
+/* 7 · Golden Hour — warm sunset gradient */
+[data-theme="sunset"] {
+  --bg: #fff3ea;
+  --bg-image: radial-gradient(900px 600px at 100% 0%, rgba(255, 150, 100, .35), transparent 60%), radial-gradient(800px 600px at 0% 30%, rgba(255, 105, 160, .18), transparent 60%);
+  --surface: rgba(255, 255, 255, .72); --surface-solid: #fffaf6; --surface-2: #ffe9dc;
+  --line: #f4d4c1; --line-strong: #f0b898; --text: #3b1f14; --muted: #8a6252; --faint: #c09886;
+  --accent: #f05a28; --accent-2: #c42b62; --accent-soft: rgba(240, 90, 40, .1); --highlight: #c42b62;
+  --font: 'DM Sans', system-ui, sans-serif; --display: 'DM Serif Display', Georgia, serif; --display-weight: 400; --display-tracking: -0.015em;
+  --radius: 22px; --radius-sm: 12px; --blur: 10px;
+  --shadow: 0 10px 30px rgba(240, 90, 40, .08); --omni-shadow: 0 16px 40px -12px rgba(240, 90, 40, .35);
+  --btn-bg: linear-gradient(120deg, #f05a28, #c42b62); --title-fill: linear-gradient(90deg, #f05a28, #c42b62);
+}
+
+/* 8 · Prism — light glass & pastel blobs */
+[data-theme="prism"] {
+  --bg: #eef0fb;
+  --bg-image: radial-gradient(600px 500px at 10% 10%, rgba(160, 140, 255, .45), transparent 70%), radial-gradient(600px 500px at 90% 20%, rgba(120, 230, 210, .45), transparent 70%), radial-gradient(700px 500px at 50% 100%, rgba(255, 180, 200, .45), transparent 70%);
+  --surface: rgba(255, 255, 255, .55); --surface-solid: #f8f8ff; --surface-2: rgba(255, 255, 255, .6);
+  --line: rgba(255, 255, 255, .85); --line-strong: rgba(91, 91, 214, .25); --text: #1e1b3a; --muted: #5d5a7e; --faint: #9a97b8;
+  --accent: #5b5bd6; --accent-2: #0b8f80; --accent-soft: rgba(91, 91, 214, .12); --highlight: #5b5bd6;
+  --font: 'Plus Jakarta Sans', system-ui, sans-serif; --display: 'Plus Jakarta Sans', system-ui, sans-serif; --display-weight: 800; --display-tracking: -0.045em;
+  --radius: 24px; --radius-sm: 14px; --blur: 18px;
+  --shadow: 0 8px 32px rgba(70, 70, 140, .1); --omni-shadow: 0 16px 40px -10px rgba(91, 91, 214, .3);
+  --btn-bg: linear-gradient(120deg, #5b5bd6, #0b8f80); --title-fill: linear-gradient(90deg, #5b5bd6, #0b8f80);
+}
+
+/* 9 · Graphite — minimal dark, like a pro tool */
+[data-theme="graphite"] {
+  --bg: #0b0b0d; --bg-image: radial-gradient(1000px 500px at 50% -20%, rgba(255, 255, 255, .06), transparent 70%);
+  --surface: #131316; --surface-solid: #151518; --surface-2: #1c1c21;
+  --line: #24242a; --line-strong: #34343c; --text: #ededf0; --muted: #8b8b95; --faint: #5a5a63;
+  --accent: #ededf0; --accent-2: #8ab4ff; --accent-soft: rgba(255, 255, 255, .07); --on-accent: #0b0b0d; --highlight: #f5c26b;
+  --ok: #4ade80; --mid: #f5c26b; --bad: #f87171;
+  --font: 'Inter', system-ui, sans-serif; --display: 'Inter', system-ui, sans-serif; --display-weight: 600; --display-tracking: -0.045em;
+  --h3-color: #8b8b95; --h3-size: 11.5px; --radius: 12px; --radius-sm: 8px;
+  --title-fill: linear-gradient(180deg, #ffffff 20%, #6e6e78); --map-filter: invert(.92) hue-rotate(180deg) saturate(.2) brightness(.85);
+  color-scheme: dark;
+}
+
+/* 10 · Notebook — graph paper & ink */
+[data-theme="notebook"] {
+  --bg: #fbfbf5;
+  --bg-image: linear-gradient(rgba(60, 110, 200, .09) 1px, transparent 1px), linear-gradient(90deg, rgba(60, 110, 200, .09) 1px, transparent 1px);
+  --bg-size: 24px 24px;
+  --surface: #ffffff; --surface-solid: #fff; --surface-2: #f3f5fb;
+  --line: #d6def0; --line-strong: #1d2a44; --text: #1d2a44; --muted: #5a6785; --faint: #96a0b8;
+  --accent: #2754c5; --accent-2: #2754c5; --accent-soft: rgba(39, 84, 197, .1); --highlight: #d9480f;
+  --font: 'Nunito', system-ui, sans-serif; --display: 'Caveat', 'Comic Sans MS', cursive; --display-weight: 700; --display-tracking: 0;
+  --h3-font: 'Caveat', cursive; --h3-transform: none; --h3-size: 24px; --h3-tracking: 0; --h3-color: #d9480f;
+  --radius: 4px; --radius-sm: 3px; --border-w: 1.5px; --shadow: 3px 4px 0 rgba(29, 42, 68, .1);
+  --title-fill: linear-gradient(#2754c5, #2754c5);
+}
+[data-theme="notebook"] .hero-title { font-size: clamp(64px, 11vw, 124px); }
+[data-theme="notebook"] .accent-word { text-decoration: underline wavy #d9480f 3px; text-underline-offset: 10px; -webkit-text-fill-color: #2754c5; }
+[data-theme="notebook"] .card:nth-child(3n+1) { rotate: -.4deg; } [data-theme="notebook"] .card:nth-child(3n+2) { rotate: .3deg; }
+
+/* 11 · Retro OS — 90s desktop */
+[data-theme="retro"] {
+  --bg: #008080; --surface: #c0c0c0; --surface-solid: #c0c0c0; --surface-2: #dcdcdc;
+  --line: #808080; --line-strong: #000; --text: #000; --muted: #3a3a3a; --faint: #6a6a6a;
+  --accent: #000080; --accent-2: #0000ee; --accent-soft: rgba(0, 0, 128, .14); --on-accent: #fff; --highlight: #800000;
+  --ok: #007000; --mid: #806000; --bad: #a00000;
+  --font: Tahoma, Verdana, 'Segoe UI', sans-serif; --display: 'Silkscreen', 'Courier New', monospace; --display-weight: 400; --display-tracking: 0;
+  --radius: 0; --radius-sm: 0; --pill: 0; --border-w: 1px;
+  --shadow: inset -2px -2px 0 #404040, inset 2px 2px 0 #fff; --shadow-hover: inset -2px -2px 0 #404040, inset 2px 2px 0 #fff;
+  --omni-shadow: inset 2px 2px 0 #404040, inset -2px -2px 0 #fff;
+  --btn-bg: #c0c0c0; --btn-text: #000; --btn-border: #000; --topbar-bg: #c0c0c0;
+  --title-fill: linear-gradient(#ffff00, #ffff00);
+}
+[data-theme="retro"] .hero-title { color: #fff; text-shadow: 3px 3px 0 #000; }
+[data-theme="retro"] .hero-sub, [data-theme="retro"] .hint { color: #e0ffff; }
+[data-theme="retro"] .omnibox { background: #fff; }
+[data-theme="retro"] button, [data-theme="retro"] .btn { box-shadow: inset -2px -2px 0 #404040, inset 2px 2px 0 #fff; }
+[data-theme="retro"] .card h3 { background: linear-gradient(90deg, #000080, #1084d0); color: #fff; margin: -16px -18px 12px; padding: 4px 8px; font-size: 12px; text-transform: none; letter-spacing: 0; }
+[data-theme="retro"] .card { padding: 16px 18px; border-color: #000; }
+[data-theme="retro"] .foot { color: #e0ffff; }
+[data-theme="retro"] .foot a { color: #ffff00; }
+[data-theme="retro"] .section-head h2, [data-theme="retro"] .section-head .muted { color: #fff; }
+
+/* 12 · Old Atlas — parchment & sepia */
+[data-theme="atlas"] {
+  --bg: #ecdfc0; --bg-image: radial-gradient(ellipse at center, transparent 45%, rgba(110, 70, 25, .22));
+  --surface: #f6ecd3; --surface-solid: #f6ecd3; --surface-2: #e7d6b0;
+  --line: #c8b285; --line-strong: #5b4426; --text: #3a2a17; --muted: #7a6243; --faint: #a89070;
+  --accent: #8b2e1a; --accent-2: #2b5b6b; --accent-soft: rgba(139, 46, 26, .1); --highlight: #8b2e1a;
+  --font: 'Libre Baskerville', Georgia, serif; --display: 'IM Fell English', Georgia, serif; --display-weight: 400; --display-tracking: -0.01em;
+  --h3-font: 'IM Fell English', serif; --h3-transform: none; --h3-size: 21px; --h3-tracking: 0;
+  --radius: 2px; --radius-sm: 2px; --shadow: 0 2px 0 rgba(91, 68, 38, .15);
+  --map-filter: sepia(.75) saturate(.8) contrast(.95); --title-fill: linear-gradient(#8b2e1a, #8b2e1a);
+}
+[data-theme="atlas"] body { font-size: 14px; }
+[data-theme="atlas"] .card { outline: 1px solid var(--line); outline-offset: -6px; }
+
+/* 13 · Lagoon — fresh teal & coral */
+[data-theme="lagoon"] {
+  --bg: #f1fafa; --bg-image: linear-gradient(180deg, #d7f3f1 0, transparent 480px);
+  --surface: #ffffff; --surface-solid: #fff; --surface-2: #e4f5f4;
+  --line: #cbe8e6; --line-strong: #9fd3d0; --text: #0b3b45; --muted: #4f7a82; --faint: #8fb3b8;
+  --accent: #0e94a2; --accent-2: #e8603c; --accent-soft: rgba(14, 148, 162, .1); --highlight: #e8603c;
+  --font: 'Outfit', system-ui, sans-serif; --display: 'Outfit', system-ui, sans-serif; --display-weight: 700; --display-tracking: -0.035em;
+  --radius: 18px; --radius-sm: 10px; --shadow: 0 4px 18px rgba(14, 148, 162, .08);
+  --omni-shadow: 0 14px 36px -14px rgba(14, 148, 162, .45); --title-fill: linear-gradient(90deg, #0e94a2, #e8603c);
+}
+
+/* 14 · Bubblegum — playful & chunky */
+[data-theme="candy"] {
+  --bg: #fff0f6; --surface: #ffffff; --surface-solid: #fff; --surface-2: #ffe4ef;
+  --line: #ffc2da; --line-strong: #2b0f3a; --text: #2b0f3a; --muted: #7a5b86; --faint: #b79bc0;
+  --accent: #ff3d8b; --accent-2: #6b4cff; --accent-soft: rgba(255, 61, 139, .12); --highlight: #6b4cff;
+  --font: 'Fredoka', 'Nunito', system-ui, sans-serif; --display: 'Fredoka', system-ui, sans-serif; --display-weight: 700; --display-tracking: -0.02em;
+  --h3-transform: none; --h3-size: 17px; --h3-tracking: 0; --h3-color: #6b4cff;
+  --radius: 26px; --radius-sm: 14px; --border-w: 2px;
+  --shadow: 0 6px 0 #ffc2da; --shadow-hover: 0 4px 0 #2b0f3a; --omni-shadow: 0 6px 0 #2b0f3a;
+  --btn-border: #2b0f3a; --title-fill: linear-gradient(90deg, #ff3d8b, #6b4cff);
+}
+
+/* 15 · Ink — pure black & white */
+[data-theme="ink"] {
+  --bg: #ffffff; --surface: #ffffff; --surface-solid: #fff; --surface-2: #f2f2f2;
+  --line: #000; --line-strong: #000; --text: #000; --muted: #4d4d4d; --faint: #8a8a8a;
+  --accent: #000; --accent-2: #000; --accent-soft: rgba(0, 0, 0, .07); --on-accent: #fff; --highlight: #000;
+  --ok: #000; --mid: #000; --bad: #000;
+  --font: 'Inter', system-ui, sans-serif; --display: 'Bricolage Grotesque', 'Inter', sans-serif; --display-weight: 800; --display-tracking: -0.05em;
+  --radius: 0; --radius-sm: 0; --title-fill: linear-gradient(#000, #000); --map-filter: grayscale(1) contrast(1.1);
+}
+[data-theme="ink"] a { text-decoration: underline; text-underline-offset: 3px; }
+[data-theme="ink"] .tabs a, [data-theme="ink"] .brand, [data-theme="ink"] .btn { text-decoration: none; }
+[data-theme="ink"] .accent-word { font-style: italic; }
+[data-theme="ink"] img { filter: grayscale(1); }
+
+/* 16 · Sakura — soft Japanese minimal */
+[data-theme="sakura"] {
+  --bg: #fdf6f7; --bg-image: radial-gradient(700px 400px at 90% 0%, rgba(240, 170, 190, .25), transparent 70%);
+  --surface: #fffafb; --surface-solid: #fffafb; --surface-2: #fbeaee;
+  --line: #f0d4da; --line-strong: #e2b3be; --text: #3d2a30; --muted: #8a6f76; --faint: #c0a6ad;
+  --accent: #d24d6e; --accent-2: #5f84ab; --accent-soft: rgba(210, 77, 110, .09); --highlight: #d24d6e;
+  --font: 'Zen Kaku Gothic New', system-ui, sans-serif; --display: 'Shippori Mincho', 'Hiragino Mincho ProN', serif; --display-weight: 700; --display-tracking: 0;
+  --h3-transform: none; --h3-size: 14px; --h3-tracking: .08em;
+  --radius: 14px; --radius-sm: 8px; --shadow: 0 2px 12px rgba(210, 77, 110, .06);
+  --title-fill: linear-gradient(#d24d6e, #d24d6e);
+}

@@ -3,14 +3,14 @@
 //  • API data: network-first with a timeout, falling back to the last good response.
 //  • Images: cache-first, capped so the cache doesn't grow forever.
 
-const VERSION = 'v1.0.0';
+const VERSION = 'v1.1.0';
 const SHELL = `rexx-shell-${VERSION}`;
 const DATA = 'rexx-data';
 const IMG = 'rexx-img';
 
 const SHELL_FILES = [
   './', './index.html', './css/style.css', './js/app.js', './js/api.js', './js/vault.js',
-  './js/stars.js', './js/ui.js', './manifest.webmanifest', './icons/icon.svg',
+  './js/ui.js', './js/themes.js', './css/themes.css', './css/fonts.css', './manifest.webmanifest', './icons/icon.svg',
 ];
 
 self.addEventListener('install', (e) => {
@@ -66,6 +66,8 @@ self.addEventListener('fetch', (e) => {
       e.respondWith(fetch(req).catch(() => caches.match('./index.html')));
       return;
     }
+    // Fonts are fetched only when a theme needs them, then kept for offline use.
+    if (url.pathname.includes('/fonts/')) { e.respondWith(cacheFirst(req, SHELL, 200)); return; }
     e.respondWith(caches.match(req).then((hit) => hit || fetch(req)));
     return;
   }
