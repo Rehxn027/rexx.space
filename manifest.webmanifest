@@ -1,0 +1,13 @@
+{
+  "name": "rexx.space — the world, in one search",
+  "short_name": "rexx",
+  "description": "One search for everything: knowledge, people, places, live events and social pulse. Works offline.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#07040f",
+  "theme_color": "#07040f",
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

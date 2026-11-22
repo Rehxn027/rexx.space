@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>rexx.space — the world, in one search</title>
+  <meta name="description" content="One search for everything: knowledge, people, places, live events and the social pulse of the internet. Installable, and works offline.">
+  <meta name="theme-color" content="#07040f">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon.svg">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="stars" aria-hidden="true"></canvas>
+
+  <header class="topbar">
+    <a class="brand" href="#/" aria-label="rexx.space home">
+      <img src="icons/icon.svg" alt="" width="30" height="30">
+      <span>rexx<b>.space</b></span>
+    </a>
+    <nav class="tabs" aria-label="Sections">
+      <a href="#/" data-tab="home">Today</a>
+      <a href="#/pulse" data-tab="pulse">Pulse</a>
+      <a href="#/planet" data-tab="planet">Planet</a>
+      <a href="#/vault" data-tab="vault">Vault <span id="vault-count" class="pill"></span></a>
+      <a href="#/offline" data-tab="offline">Offline</a>
+    </nav>
+    <span id="net" class="net" title="Connection status"></span>
+  </header>
+
+  <section class="hero" id="hero">
+    <h1 class="hero-title">Ask the <span class="shimmer">universe</span>.</h1>
+    <p class="hero-sub">Events, people, places, ideas and the live social pulse — one search, pulled from the open internet.</p>
+    <form id="search" class="omnibox" role="search" autocomplete="off">
+      <span class="omni-icon" aria-hidden="true">✦</span>
+      <input id="q" name="q" type="search" placeholder="Search anything — Marie Curie, Tokyo, black holes, the Moon landing…" aria-label="Search" spellcheck="false">
+      <select id="lang" aria-label="Wikipedia language">
+        <option value="en">EN</option><option value="es">ES</option><option value="fr">FR</option>
+        <option value="de">DE</option><option value="hi">HI</option><option value="ur">UR</option>
+        <option value="ar">AR</option><option value="ja">JA</option><option value="pt">PT</option>
+      </select>
+      <button type="submit">Search</button>
+      <ul id="suggest" class="suggest" role="listbox" hidden></ul>
+    </form>
+    <div class="hero-actions">
+      <button class="ghost" id="teleport" type="button">🎲 Teleport to a random page</button>
+      <span class="hint">Press <kbd>/</kbd> to search</span>
+    </div>
+  </section>
+
+  <main id="view" tabindex="-1"></main>
+
+  <footer class="foot">
+    <p>Data from Wikipedia, Wikidata, OpenStreetMap, Open‑Meteo, USGS, REST Countries, Hacker News, Bluesky, Mastodon, Open Library &amp; GDELT. Content belongs to its respective authors and licenses.</p>
+    <p><a href="https://github.com/rehxn027/rexx.space">Source on GitHub</a> · Built as an installable, offline-first PWA.</p>
+  </footer>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

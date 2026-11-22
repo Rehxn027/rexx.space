@@ -1,0 +1,82 @@
+// rexx.space service worker — makes the app installable and usable offline.
+//  • App shell: precached, served cache-first (opens instantly, even in airplane mode).
+//  • API data: network-first with a timeout, falling back to the last good response.
+//  • Images: cache-first, capped so the cache doesn't grow forever.
+
+const VERSION = 'v1.0.0';
+const SHELL = `rexx-shell-${VERSION}`;
+const DATA = 'rexx-data';
+const IMG = 'rexx-img';
+
+const SHELL_FILES = [
+  './', './index.html', './css/style.css', './js/app.js', './js/api.js', './js/vault.js',
+  './js/stars.js', './js/ui.js', './manifest.webmanifest', './icons/icon.svg',
+];
+
+self.addEventListener('install', (e) => {
+  e.waitUntil(caches.open(SHELL).then((c) => c.addAll(SHELL_FILES)).then(() => self.skipWaiting()));
+});
+
+self.addEventListener('activate', (e) => {
+  e.waitUntil((async () => {
+    for (const k of await caches.keys()) if (k.startsWith('rexx-shell-') && k !== SHELL) await caches.delete(k);
+    await self.clients.claim();
+  })());
+});
+
+async function trim(cacheName, max) {
+  const c = await caches.open(cacheName);
+  const keys = await c.keys();
+  for (let i = 0; i < keys.length - max; i++) await c.delete(keys[i]);
+}
+
+async function networkFirst(req, timeoutMs = 7000) {
+  const cache = await caches.open(DATA);
+  try {
+    const res = await Promise.race([
+      fetch(req),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), timeoutMs)),
+    ]);
+    if (res.ok) { cache.put(req, res.clone()); trim(DATA, 400); }
+    return res;
+  } catch (err) {
+    const hit = await cache.match(req);
+    if (hit) return hit;
+    throw err;
+  }
+}
+
+async function cacheFirst(req, cacheName, max) {
+  const cache = await caches.open(cacheName);
+  const hit = await cache.match(req);
+  if (hit) return hit;
+  const res = await fetch(req);
+  if (res.ok || res.type === 'opaque') { cache.put(req, res.clone()); trim(cacheName, max); }
+  return res;
+}
+
+self.addEventListener('fetch', (e) => {
+  const req = e.request;
+  if (req.method !== 'GET') return;
+  const url = new URL(req.url);
+
+  if (url.origin === location.origin) {
+    // Navigations always get the shell so deep links (#/q/...) work offline.
+    if (req.mode === 'navigate') {
+      e.respondWith(fetch(req).catch(() => caches.match('./index.html')));
+      return;
+    }
+    e.respondWith(caches.match(req).then((hit) => hit || fetch(req)));
+    return;
+  }
+
+  if (req.destination === 'image' || /\.(png|jpe?g|webp|gif|svg)$/i.test(url.pathname)) {
+    e.respondWith(cacheFirst(req, IMG, 300).catch(() => new Response('', { status: 504 })));
+    return;
+  }
+
+  // Map tiles / iframes etc. pass straight through.
+  if (url.hostname.includes('openstreetmap.org') && !url.hostname.startsWith('nominatim')) return;
+
+  e.respondWith(networkFirst(req));
+});
