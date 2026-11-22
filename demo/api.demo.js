@@ -228,3 +228,17 @@ export async function books(q) {
     url: `https://openlibrary.org/search?q=${encodeURIComponent(title)}`,
   })));
 }
+
+/* Sources added in v2: all need the live internet, so the demo shows a note in their place. */
+export const papers = live;
+export const biomed = live;
+export const define = live;
+export const freeBooks = live;
+export const freeBook = live;
+export const bookText = live;
+export const images = live;
+export const travelGuide = live;
+export const nearby = live;
+export const airQuality = live;
+export const exchangeRate = live;
+export const onThisDay = live;

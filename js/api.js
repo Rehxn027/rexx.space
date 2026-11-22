@@ -175,7 +175,7 @@ export async function wikidataEntity(qid) {
 /* ───────────── Places ───────────── */
 
 export async function weather(lat, lon) {
-  const u = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m,is_day&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=auto&forecast_days=5`;
+  const u = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m,is_day&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset&timezone=auto&forecast_days=5`;
   return getJSON(u);
 }
 
@@ -290,4 +290,219 @@ export async function books(q) {
     cover: b.cover_i ? `https://covers.openlibrary.org/b/id/${b.cover_i}-M.jpg` : null,
     url: `https://openlibrary.org${b.key}`,
   }));
+}
+
+/* ───────────── Research papers ───────────── */
+
+/** OpenAlex stores abstracts as {word: [positions]}; rebuild the text. */
+function invertedToText(inv) {
+  if (!inv) return '';
+  const words = [];
+  for (const [w, pos] of Object.entries(inv)) for (const p of pos) words[p] = w;
+  return words.join(' ').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Scholarly works from OpenAlex (about 250 million papers, books and datasets, including arXiv preprints).
+ * sort: 'relevance' | 'cited' | 'newest'. oa: only works with a free full text.
+ */
+export async function papers(q, { sort = 'relevance', oa = false, per = 10, page = 1 } = {}) {
+  const sorts = { relevance: '', cited: '&sort=cited_by_count:desc', newest: '&sort=publication_date:desc' };
+  const filter = oa ? '&filter=is_oa:true' : '';
+  const fields = 'id,doi,display_name,publication_year,publication_date,cited_by_count,authorships,primary_location,open_access,best_oa_location,abstract_inverted_index,type';
+  const u = `https://api.openalex.org/works?search=${encodeURIComponent(q)}&per-page=${per}&page=${page}${sorts[sort] || ''}${filter}&select=${fields}`;
+  const d = await getJSON(u);
+  return {
+    total: d.meta?.count || 0,
+    items: (d.results || []).map((w) => ({
+      kind: 'paper',
+      id: w.id?.split('/').pop(),
+      title: w.display_name || 'Untitled',
+      authors: (w.authorships || []).map((a) => a.author?.display_name).filter(Boolean),
+      year: w.publication_year,
+      date: w.publication_date,
+      venue: w.primary_location?.source?.display_name || '',
+      cited: w.cited_by_count,
+      doi: w.doi ? w.doi.replace('https://doi.org/', '') : '',
+      url: w.doi || w.primary_location?.landing_page_url || w.id,
+      oa: !!w.open_access?.is_oa,
+      pdf: w.best_oa_location?.pdf_url || w.open_access?.oa_url || '',
+      abstract: invertedToText(w.abstract_inverted_index),
+      type: w.type,
+    })),
+  };
+}
+
+/** Biomedical and life-science literature from Europe PMC (includes PubMed). */
+export async function biomed(q, per = 6) {
+  const u = `https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=${encodeURIComponent(q)}&format=json&pageSize=${per}&resultType=core&sort=CITED%20desc`;
+  const d = await getJSON(u);
+  return (d.resultList?.result || []).map((r) => ({
+    kind: 'paper',
+    id: r.id,
+    title: (r.title || '').replace(/<[^>]+>/g, '').replace(/\.$/, ''),
+    authors: (r.authorString || '').replace(/\.$/, '').split(', ').filter(Boolean),
+    year: Number(r.pubYear) || null,
+    venue: r.journalInfo?.journal?.title || r.journalTitle || '',
+    cited: r.citedByCount,
+    doi: r.doi || '',
+    url: r.doi ? `https://doi.org/${r.doi}` : `https://europepmc.org/article/${r.source}/${r.id}`,
+    oa: r.isOpenAccess === 'Y',
+    pdf: (r.fullTextUrlList?.fullTextUrl || []).find((f) => f.documentStyle === 'pdf' && f.availabilityCode === 'OA')?.url || '',
+    abstract: (r.abstractText || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
+  }));
+}
+
+/* ───────────── Dictionary ───────────── */
+
+/**
+ * Definitions, pronunciation and examples. English uses the Free Dictionary API (with audio);
+ * other languages use Wiktionary's definition service.
+ */
+export async function define(word) {
+  const w = word.trim().toLowerCase();
+  if (!w || w.split(/\s+/).length > 3) return null;
+  if (LANG === 'en') {
+    try {
+      const d = await getJSON(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(w)}`, { timeout: 7000 });
+      const e = d[0];
+      return {
+        word: e.word,
+        phonetic: e.phonetic || e.phonetics?.find((p) => p.text)?.text || '',
+        audio: e.phonetics?.find((p) => p.audio)?.audio || '',
+        meanings: d.flatMap((x) => x.meanings).map((m) => ({
+          pos: m.partOfSpeech,
+          defs: m.definitions.slice(0, 3).map((x) => ({ text: x.definition, example: x.example })),
+          synonyms: [...new Set([...(m.synonyms || []), ...m.definitions.flatMap((x) => x.synonyms || [])])].slice(0, 8),
+        })),
+        source: `https://en.wiktionary.org/wiki/${encodeURIComponent(w)}`,
+      };
+    } catch { /* fall through to Wiktionary */ }
+  }
+  const d = await getJSON(`https://en.wiktionary.org/api/rest_v1/page/definition/${encodeURIComponent(w)}`, { timeout: 7000 });
+  const entries = d[LANG] || d.en || Object.values(d)[0] || [];
+  const strip = (h) => String(h || '').replace(/<[^>]+>/g, '').trim();
+  const meanings = entries.map((m) => ({
+    pos: m.partOfSpeech,
+    defs: (m.definitions || []).filter((x) => strip(x.definition)).slice(0, 3).map((x) => ({ text: strip(x.definition), example: strip(x.examples?.[0]) })),
+    synonyms: [],
+  })).filter((m) => m.defs.length);
+  if (!meanings.length) return null;
+  return { word: w, phonetic: '', audio: '', meanings, source: `https://en.wiktionary.org/wiki/${encodeURIComponent(w)}` };
+}
+
+/* ───────────── Free books ───────────── */
+
+/** Public-domain books from Project Gutenberg (via the Gutendex catalogue). Empty query = most popular. */
+export async function freeBooks(q = '', page = 1) {
+  const lang = LANG === 'en' ? 'en' : `${LANG},en`;
+  const u = `https://gutendex.com/books/?languages=${lang}&page=${page}${q ? `&search=${encodeURIComponent(q)}` : ''}`;
+  const d = await getJSON(u, { timeout: 15000 });
+  return {
+    total: d.count,
+    next: !!d.next,
+    items: (d.results || []).map(gutenbergBook),
+  };
+}
+
+function gutenbergBook(b) {
+  const f = b.formats || {};
+  const txt = Object.entries(f).find(([k, v]) => k.startsWith('text/plain') && !v.endsWith('.zip'))?.[1] || '';
+  return {
+    kind: 'book',
+    id: String(b.id),
+    title: b.title,
+    authors: (b.authors || []).map((a) => a.name.split(', ').reverse().join(' ')),
+    authorYears: (b.authors || [])[0] ? `${b.authors[0].birth_year ?? '?'}–${b.authors[0].death_year ?? '?'}` : '',
+    subjects: (b.subjects || []).slice(0, 4),
+    languages: b.languages,
+    cover: f['image/jpeg'] || '',
+    text: txt,
+    html: f['text/html'] || '',
+    url: `https://www.gutenberg.org/ebooks/${b.id}`,
+    downloads: b.download_count,
+  };
+}
+
+export async function freeBook(id) {
+  return gutenbergBook(await getJSON(`https://gutendex.com/books/${encodeURIComponent(id)}/`));
+}
+
+/** Full text of a Gutenberg book, with the licence header and footer trimmed. */
+export async function bookText(book) {
+  const urls = [book.text, `https://www.gutenberg.org/cache/epub/${book.id}/pg${book.id}.txt`].filter(Boolean);
+  let raw = '';
+  for (const u of urls) {
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 30000);
+      const res = await fetch(u, { signal: ctrl.signal });
+      clearTimeout(t);
+      if (res.ok) { raw = await res.text(); break; }
+    } catch { /* try next */ }
+  }
+  if (!raw) throw new Error('Book text unavailable');
+  const start = raw.search(/\*\*\* ?START OF (THE|THIS) PROJECT GUTENBERG[^\n]*\n/i);
+  const end = raw.search(/\*\*\* ?END OF (THE|THIS) PROJECT GUTENBERG/i);
+  return raw.slice(start >= 0 ? raw.indexOf('\n', start) + 1 : 0, end > 0 ? end : undefined).trim();
+}
+
+/* ───────────── Images ───────────── */
+
+/** Freely licensed images from Wikimedia Commons. */
+export async function images(q, n = 12) {
+  const u = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(`${q} filetype:bitmap`)}&gsrnamespace=6&gsrlimit=${n}&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=480&format=json&origin=*`;
+  const d = await getJSON(u);
+  return Object.values(d.query?.pages || {})
+    .sort((a, b) => a.index - b.index)
+    .map((p) => {
+      const ii = p.imageinfo?.[0] || {};
+      const m = ii.extmetadata || {};
+      const strip = (h) => String(h || '').replace(/<[^>]+>/g, '').trim();
+      return {
+        title: p.title.replace(/^File:/, '').replace(/\.[a-z]+$/i, ''),
+        thumb: ii.thumburl, full: ii.url, page: ii.descriptionurl,
+        author: strip(m.Artist?.value).slice(0, 60), license: strip(m.LicenseShortName?.value),
+      };
+    })
+    .filter((x) => x.thumb);
+}
+
+/* ───────────── More about places ───────────── */
+
+/** Travel guide summary from Wikivoyage. */
+export async function travelGuide(title) {
+  const slug = encodeURIComponent(title.replace(/ /g, '_'));
+  for (const lang of [...new Set([LANG, 'en'])]) {
+    try {
+      const d = await getJSON(`https://${lang}.wikivoyage.org/api/rest_v1/page/summary/${slug}`, { timeout: 7000 });
+      if (d.extract && d.type !== 'disambiguation') return { extract: d.extract, url: d.content_urls?.desktop?.page };
+    } catch { /* try English */ }
+  }
+  return null;
+}
+
+/** Wikipedia articles about places within ~10 km. */
+export async function nearby(lat, lon, n = 10) {
+  const d = await getJSON(`${wiki()}/w/api.php?action=query&list=geosearch&gscoord=${lat}|${lon}&gsradius=10000&gslimit=${n + 1}&format=json&origin=*`);
+  return (d.query?.geosearch || []).filter((g) => g.dist > 50).slice(0, n).map((g) => ({ title: g.title, dist: g.dist }));
+}
+
+export async function airQuality(lat, lon) {
+  const d = await getJSON(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=us_aqi,pm2_5,pm10`, { timeout: 7000 });
+  return d.current || null;
+}
+
+/** Latest reference exchange rates (European Central Bank, via Frankfurter). */
+export async function exchangeRate(code) {
+  const d = await getJSON(`https://api.frankfurter.app/latest?from=${encodeURIComponent(code)}&to=USD,EUR`, { timeout: 7000 });
+  return { date: d.date, rates: d.rates };
+}
+
+/* ───────────── Any date in history ───────────── */
+
+/** Events, births, deaths and holidays for a day of the year (MM, DD). */
+export async function onThisDay(mm, dd) {
+  const l = ['en', 'de', 'fr', 'sv', 'pt', 'ru', 'es', 'ar', 'bs', 'uk', 'it', 'tr', 'zh'].includes(LANG) ? LANG : 'en';
+  return getJSON(`https://api.wikimedia.org/feed/v1/wikipedia/${l}/onthisday/all/${pad(mm)}/${pad(dd)}`);
 }

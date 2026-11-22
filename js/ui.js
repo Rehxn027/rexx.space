@@ -80,3 +80,40 @@ export function mercator(lat, lon) {
   const l = Math.max(-85.05, Math.min(85.05, lat)) * Math.PI / 180;
   return { x: (lon + 180) / 360, y: (1 - Math.log(Math.tan(l) + 1 / Math.cos(l)) / Math.PI) / 2 };
 }
+
+/** A titled card; body may be a string, raw() HTML, or null for a loading skeleton. */
+export const card = (title, body, { wide, cls = '', optional } = {}) => html`
+  <article class="card ${wide ? 'wide' : ''} ${cls}" ${raw(optional ? 'data-optional' : '')}>
+    <h3>${raw(title)}</h3>
+    <div class="body">${body ?? skeleton()}</div>
+  </article>`;
+
+/** Link that searches rexx for a title. */
+export const qlink = (title, label = title) => html`<a class="q" href="#/q/${encodeURIComponent(title)}">${label}</a>`;
+
+/** Copy text; returns true on success. Falls back to selecting an element's text. */
+export async function copyText(text, fallbackEl) {
+  try { await navigator.clipboard.writeText(text); return true; } catch {
+    if (fallbackEl) { const r = document.createRange(); r.selectNodeContents(fallbackEl); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); }
+    return false;
+  }
+}
+
+/** Light markdown for model answers: paragraphs, **bold**, *italic*, bullet and numbered lists, ### headings. Input is escaped first. */
+export function miniMarkdown(text) {
+  const out = [];
+  let list = null;
+  const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|[^*])\*(?!\s)(.+?)\*(?!\*)/g, '$1<i>$2</i>');
+  const close = () => { if (list) { out.push(`</${list}>`); list = null; } };
+  for (const line of text.split('\n')) {
+    const t = line.trim();
+    let m;
+    if (!t) { close(); continue; }
+    if ((m = /^#{1,4}\s+(.*)$/.exec(t))) { close(); out.push(`<h4>${inline(m[1])}</h4>`); continue; }
+    if ((m = /^[-*•]\s+(.*)$/.exec(t))) { if (list !== 'ul') { close(); out.push('<ul>'); list = 'ul'; } out.push(`<li>${inline(m[1])}</li>`); continue; }
+    if ((m = /^\d+[.)]\s+(.*)$/.exec(t))) { if (list !== 'ol') { close(); out.push('<ol>'); list = 'ol'; } out.push(`<li>${inline(m[1])}</li>`); continue; }
+    close(); out.push(`<p>${inline(t)}</p>`);
+  }
+  close();
+  return out.join('');
+}

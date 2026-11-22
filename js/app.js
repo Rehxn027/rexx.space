@@ -1,7 +1,12 @@
 import * as api from './api.js';
 import * as vault from './vault.js';
 import { mountPicker } from './themes.js';
-import { html, raw, esc, $, $$, ago, compact, bytes, toast, skeleton, slot, mercator } from './ui.js';
+import { researchView, paperHTML, wirePapers } from './views/research.js';
+import { libraryView, bookView } from './views/library.js';
+import { askView } from './views/ask.js';
+import { dayView } from './views/day.js';
+import { openCite, wikiRecord, paperRecord } from './views/cite-dialog.js';
+import { html, raw, esc, $, $$, ago, compact, bytes, toast, slot, mercator, card, qlink } from './ui.js';
 
 const view = $('#view');
 const hero = $('#hero');
@@ -100,8 +105,14 @@ $('#teleport').addEventListener('click', async () => {
 
 /* ───────────── router ───────────── */
 
+const ctx = { refreshVaultCount: () => refreshVaultCount() };
 const routes = {
   '': home, pulse, planet, vault: vaultView, offline: offlineView,
+  research: (arg) => researchView(view, arg, ctx),
+  library: (arg) => libraryView(view, arg, ctx),
+  book: (arg) => bookView(view, arg, ctx),
+  ask: (arg) => askView(view, arg, ctx),
+  day: (arg) => dayView(view, arg, ctx),
   q: (arg) => search(decodeURIComponent(arg)),
   read: (arg) => reader(decodeURIComponent(arg)),
 };
@@ -111,7 +122,8 @@ function route() {
   clearInterval(planetTimer);
   const [, name = '', ...rest] = location.hash.replace(/^#/, '').split('/');
   const fn = routes[name] || home;
-  $$('.tabs a').forEach((a) => a.classList.toggle('active', a.dataset.tab === (name || 'home')));
+  const tab = { book: 'library', q: '', read: 'vault', day: 'home' }[name] ?? (name || 'home');
+  $$('.tabs a').forEach((a) => a.classList.toggle('active', a.dataset.tab === tab));
   hero.classList.toggle('compact', name !== '');
   suggest.hidden = true;
   if (name !== 'q') input.value = '';
@@ -123,13 +135,6 @@ addEventListener('hashchange', route);
 
 /* ───────────── shared bits ───────────── */
 
-const card = (title, body, { wide, cls = '', optional } = {}) => html`
-  <article class="card ${wide ? 'wide' : ''} ${cls}" ${raw(optional ? 'data-optional' : '')}>
-    <h3>${raw(title)}</h3>
-    <div class="body">${body ?? skeleton()}</div>
-  </article>`;
-
-const qlink = (title, label = title) => html`<a class="q" href="#/q/${encodeURIComponent(title)}">${label}</a>`;
 
 function postList(posts) {
   if (!posts?.length) return '';
@@ -203,7 +208,8 @@ function home() {
     <li>${raw(storyHTML(n.story))}</li>`))}</ul>`);
   slot(read, feed, (f) => f.mostread?.articles && mostReadList(f.mostread.articles, 8));
   slot(otd, feed, (f) => f.onthisday?.length && html`<ul class="timeline">${f.onthisday.slice(0, 8).map((e) => raw(html`
-    <li><span class="yr">${e.year}</span><p>${e.text} ${e.pages?.[0] ? raw(qlink(e.pages[0].titles?.normalized || e.pages[0].title, '→')) : ''}</p></li>`))}</ul>`);
+    <li><span class="yr">${e.year}</span><p>${e.text} ${e.pages?.[0] ? raw(qlink(e.pages[0].titles?.normalized || e.pages[0].title, '→')) : ''}</p></li>`))}</ul>
+    <a class="more" href="#/day">Births, deaths and any other date →</a>`);
   slot(pic, feed, (f) => f.image && html`<figure class="pod"><img src="${f.image.thumbnail?.source}" alt="${f.image.title}" loading="lazy">
       <figcaption>${(f.image.description?.text || '').slice(0, 260)}</figcaption></figure>`);
   slot(quake, api.earthquakes(), (qs) => {
@@ -258,6 +264,8 @@ async function search(q) {
         <p class="lead">${s.extract}</p>
         <div class="actions">
           <button id="save" class="${isSaved ? 'saved' : ''}">${isSaved ? '✓ In your Vault' : '⬇ Save for offline'}</button>
+          <button class="ghost" id="cite">Cite</button>
+          <a class="ghost btn" href="#/ask/${encodeURIComponent(`Tell me about ${title}`)}">Ask about this</a>
           <a class="ghost btn" href="${s.content_urls?.desktop?.page}" target="_blank" rel="noopener">Wikipedia ↗</a>
           <button class="ghost" id="share">Share</button>
         </div>
@@ -265,15 +273,21 @@ async function search(q) {
       </div>
     </section>
     <div class="grid" id="sgrid">
+      ${raw(card('📖 Dictionary', null, { optional: true, wide: true, cls: 'dict' }))}
       ${raw(card('🧬 Key facts', null, { cls: 'facts' }))}
       ${raw(card('🗺️ On the map', null, { cls: 'mapcard', optional: true }))}
       ${raw(card('🌤️ Weather there now', null, { optional: true }))}
       ${raw(card('🏳️ Country snapshot', null, { optional: true }))}
+      ${raw(card('🧳 Travel guide', null, { optional: true }))}
+      ${raw(card('📍 Nearby', null, { optional: true }))}
+      ${raw(card('📄 Research papers', null, { optional: true, wide: true, cls: 'papers-card' }))}
+      ${raw(card('🖼️ Images', null, { optional: true, wide: true }))}
       ${raw(card('📰 Latest news', null, { optional: true }))}
       ${raw(card('🦋 Bluesky says', null, { optional: true }))}
       ${raw(card('🐘 Mastodon #tag', null, { optional: true }))}
       ${raw(card('💬 Hacker News', null, { optional: true }))}
       ${raw(card('📚 Books', null, { optional: true }))}
+      ${raw(card('📗 Free to read', null, { optional: true }))}
       ${raw(card('🔭 Related', null))}
     </div>`;
 
@@ -283,7 +297,9 @@ async function search(q) {
     try { if (navigator.share) await navigator.share({ title, url }); else { await navigator.clipboard.writeText(url); toast('Link copied.'); } } catch { /* cancelled */ }
   });
 
-  const [factsEl, mapEl, wxEl, ctyEl, newsEl, bskyEl, mastoEl, hnEl, booksEl, relEl] = $$('#sgrid .card .body');
+  $('#cite').addEventListener('click', () => openCite(wikiRecord(s, api.getLang())));
+  const [dictEl, factsEl, mapEl, wxEl, ctyEl, travelEl, nearEl, paperEl, imgEl, newsEl, bskyEl, mastoEl, hnEl, booksEl, freeEl, relEl] = $$('#sgrid .card .body');
+  const plainTitle = title.replace(/\s*\(.*\)$/, '');
   const coordFromSummary = s.coordinates ? { lat: s.coordinates.lat, lon: s.coordinates.lon } : null;
 
   slot(factsEl, entityP, (e) => {
@@ -304,21 +320,68 @@ async function search(q) {
     return html`<iframe title="Map of ${title}" loading="lazy" src="https://www.openstreetmap.org/export/embed.html?bbox=${c.lon - d},${c.lat - d / 2},${c.lon + d},${c.lat + d / 2}&layer=mapnik&marker=${c.lat},${c.lon}"></iframe>
       <p class="meta">${c.lat.toFixed(3)}, ${c.lon.toFixed(3)} · <a href="https://www.openstreetmap.org/?mlat=${c.lat}&mlon=${c.lon}#map=10/${c.lat}/${c.lon}" target="_blank" rel="noopener">OpenStreetMap ↗</a></p>`;
   });
-  slot(wxEl, coordP.then((c) => (c ? api.weather(c.lat, c.lon) : null)), (w) => {
+  const aqP = coordP.then((c) => (c ? api.airQuality(c.lat, c.lon).catch(() => null) : null));
+  slot(wxEl, coordP.then(async (c) => (c ? { ...(await api.weather(c.lat, c.lon)), aq: await aqP } : null)), (w) => {
     if (!w?.current) return '';
+    const aqi = w.aq?.us_aqi;
+    const aqLabel = aqi == null ? '' : aqi <= 50 ? 'Good' : aqi <= 100 ? 'Moderate' : aqi <= 150 ? 'Unhealthy for sensitive groups' : aqi <= 200 ? 'Unhealthy' : 'Very unhealthy';
+    const sun = w.daily.sunrise?.[0] ? `☀ ${w.daily.sunrise[0].slice(11, 16)} – ${w.daily.sunset[0].slice(11, 16)}` : '';
     const [icon, label] = api.WMO[w.current.weather_code] || ['🌡️', ''];
     const days = w.daily.time.map((t, i) => ({ t, max: w.daily.temperature_2m_max[i], min: w.daily.temperature_2m_min[i], c: w.daily.weather_code[i] }));
     return html`<div class="wx"><span class="wx-icon">${icon}</span><div><b class="wx-t">${Math.round(w.current.temperature_2m)}°C</b>
       <span class="muted">${label} · feels ${Math.round(w.current.apparent_temperature)}° · 💨 ${Math.round(w.current.wind_speed_10m)} km/h · 💧${w.current.relative_humidity_2m}%</span>
-      <span class="meta">Local time zone: ${w.timezone}</span></div></div>
+      <span class="meta">${sun ? `${sun} local · ` : ''}${w.timezone}</span>
+      ${aqi != null ? raw(html`<span class="meta">Air quality: <b>${aqLabel}</b> (US AQI ${Math.round(aqi)}${w.aq.pm2_5 != null ? `, PM2.5 ${w.aq.pm2_5} µg/m³` : ''})</span>`) : ''}</div></div>
       <ul class="days">${days.map((d) => raw(html`<li><span>${new Date(d.t).toLocaleDateString('en', { weekday: 'short' })}</span><span>${(api.WMO[d.c] || ['·'])[0]}</span><b>${Math.round(d.max)}°</b><span class="muted">${Math.round(d.min)}°</span></li>`))}</ul>`;
   });
-  slot(ctyEl, entityP.then((e) => (e?.iso2 ? api.country(e.iso2) : null)), (c) => c && html`
+  slot(ctyEl, entityP.then(async (e) => {
+    if (!e?.iso2) return null;
+    const c = await api.country(e.iso2);
+    const code = Object.keys(c.currencies || {})[0];
+    if (code && code !== 'USD') c.fx = await api.exchangeRate(code).catch(() => null);
+    return c;
+  }), (c) => c && html`
     <div class="country"><img src="${c.flags?.svg || c.flags?.png}" alt="${c.flags?.alt || 'flag'}">
     <dl><dt>Official name</dt><dd>${c.name?.official}</dd><dt>Capital</dt><dd>${(c.capital || []).join(', ')}</dd>
     <dt>Region</dt><dd>${c.subregion || c.region}</dd><dt>Population</dt><dd>${compact(c.population)}</dd>
     <dt>Languages</dt><dd>${Object.values(c.languages || {}).join(', ')}</dd>
-    <dt>Currency</dt><dd>${Object.values(c.currencies || {}).map((x) => `${x.name} (${x.symbol || ''})`).join(', ')}</dd></dl></div>`);
+    <dt>Currency</dt><dd>${Object.values(c.currencies || {}).map((x) => `${x.name} (${x.symbol || ''})`).join(', ')}</dd>
+    ${c.fx?.rates?.USD ? raw(html`<dt>Exchange rate</dt><dd>1 ${Object.keys(c.currencies)[0]} = ${c.fx.rates.USD.toPrecision(4)} USD${c.fx.rates.EUR ? ` · ${c.fx.rates.EUR.toPrecision(4)} EUR` : ''} <span class="meta">ECB reference rate, ${c.fx.date}</span></dd>`) : ''}</dl></div>`);
+
+  // Places: travel guide and nearby articles.
+  const isPlace = entityP.then((e) => (e && ['city', 'country', 'place'].includes(e.type) ? e : null));
+  slot(travelEl, isPlace.then((e) => (e ? api.travelGuide(title) : null)), (t) => t && html`<p>${t.extract.slice(0, 600)}${t.extract.length > 600 ? '…' : ''}</p>
+    <a class="more" href="${t.url}" target="_blank" rel="noopener">Full guide on Wikivoyage ↗</a>`);
+  slot(nearEl, coordP.then((c) => (c ? api.nearby(c.lat, c.lon, 8) : null)), (ns) => ns?.length && html`<ul class="list">${ns.map((n) => raw(html`<li>${raw(qlink(n.title))} <span class="meta">${n.dist < 1000 ? `${Math.round(n.dist)} m` : `${(n.dist / 1000).toFixed(1)} km`} away</span></li>`))}</ul>`);
+
+  // Dictionary: only for short queries that look like words, not for people or places.
+  const looksLikeWord = q.trim().split(/\s+/).length <= 2 && !/\d/.test(q);
+  slot(dictEl, looksLikeWord ? entityP.then((e) => (e && ['person', 'city', 'country', 'organization', 'place'].includes(e.type) ? null : api.define(q))) : Promise.resolve(null), (d) => d && html`
+    <div class="dict-head"><b class="dict-word">${d.word}</b>${d.phonetic ? raw(html` <span class="muted">${d.phonetic}</span>`) : ''}
+      ${d.audio ? raw(html` <button type="button" class="ghost small" id="say" data-src="${d.audio}" aria-label="Play pronunciation">🔊 Listen</button>`) : ''}</div>
+    <div class="dict-body">${d.meanings.slice(0, 4).map((m) => raw(html`<div class="pos"><i>${m.pos}</i><ol>${m.defs.map((x) => raw(html`<li>${x.text}${x.example ? raw(html`<span class="meta">“${x.example}”</span>`) : ''}</li>`))}</ol>
+      ${m.synonyms.length ? raw(html`<span class="meta">Synonyms: ${m.synonyms.join(', ')}</span>`) : ''}</div>`))}</div>
+    <a class="more" href="${d.source}" target="_blank" rel="noopener">More on Wiktionary ↗</a>`);
+  dictEl.addEventListener('click', (e) => { const b = e.target.closest('#say'); if (b) new Audio(b.dataset.src).play().catch(() => toast('Couldn\'t play the recording.')); });
+
+  // Research papers about the topic, most cited first.
+  let topPapers = [];
+  slot(paperEl, api.papers(plainTitle, { sort: 'cited', per: 5 }), (r) => {
+    topPapers = r.items;
+    if (!topPapers.length) return '';
+    setTimeout(() => wirePapers(paperEl, topPapers, refreshVaultCount));
+    return html`<ol class="list papers">${topPapers.map((p, i) => raw(paperHTML(p, i)))}</ol>
+      <a class="more" href="#/research/${encodeURIComponent(plainTitle)}">All papers on ${plainTitle} →</a>`;
+  });
+
+  // Freely licensed images.
+  slot(imgEl, api.images(plainTitle, 12), (ims) => ims.length > 1 && html`<div class="gallery">${ims.map((m) => raw(html`
+    <a href="${m.page}" target="_blank" rel="noopener" title="${m.title}${m.author ? ` · ${m.author}` : ''}${m.license ? ` · ${m.license}` : ''}"><img src="${m.thumb}" alt="${m.title}" loading="lazy"></a>`))}</div>
+    <p class="meta">From Wikimedia Commons. Click an image for its author and licence.</p>`);
+
+  // Free public-domain books by or about the topic.
+  slot(freeEl, api.freeBooks(plainTitle), (r) => r.items.length && html`<ul class="list">${r.items.slice(0, 5).map((b) => raw(html`<li><a href="#/book/${b.id}">${b.title}</a><span class="meta">${b.authors.join(', ')}</span></li>`))}</ul>
+    <a class="more" href="#/library/${encodeURIComponent(plainTitle)}">More free books →</a>`);
 
   slot(newsEl, api.gdeltNews(`"${title.replace(/\s*\(.*\)$/, '')}"`), newsList);
   slot(bskyEl, api.blueskySearch(title.replace(/\s*\(.*\)$/, '')), postList);
@@ -380,6 +443,22 @@ function textToHTML(text) {
 async function reader(id) {
   const a = await vault.get(id).catch(() => null);
   if (!a) { view.innerHTML = '<section class="empty"><h2>Not in your Vault.</h2></section>'; return; }
+  if (a.kind === 'book') { location.replace(`#/book/${a.id.slice(5)}`); return; }
+  if (a.kind === 'paper') {
+    document.title = `${a.title} — rexx.space`;
+    view.innerHTML = html`<article class="reader">
+      <span class="badge">📄 Research paper · saved ${ago(a.savedAt)}</span>
+      <h2 class="paper-h">${a.title}</h2>
+      <p class="lead">${a.authors.join(', ')}</p>
+      <p class="meta">${a.venue || ''}${a.year ? ` · ${a.year}` : ''}${a.cited != null ? ` · cited by ${compact(a.cited)}` : ''}${a.doi ? ` · doi:${a.doi}` : ''}</p>
+      <div class="actions"><button class="ghost" id="pcite">Cite</button>
+        <a class="ghost btn" href="${a.url}" target="_blank" rel="noopener">Publisher page ↗</a>
+        ${a.pdf ? raw(html`<a class="ghost btn" href="${a.pdf}" target="_blank" rel="noopener">Free PDF ↗</a>`) : ''}</div>
+      <div class="prose"><h3>Abstract</h3>${a.abstract ? raw(html`<p>${a.abstract}</p>`) : raw('<p class="muted">No abstract is available for this paper.</p>')}</div>
+    </article>`;
+    $('#pcite').addEventListener('click', () => openCite(paperRecord(a)));
+    return;
+  }
   document.title = `${a.title} — rexx.space (offline)`;
   view.innerHTML = html`<article class="reader">
     <span class="badge">📦 From your Vault · saved ${ago(a.savedAt)}</span>
@@ -388,8 +467,9 @@ async function reader(id) {
     ${a.facts?.length ? raw(html`<dl class="facts-inline">${a.facts.map((f) => raw(html`<dt>${f.label}</dt><dd>${f.vals.join(', ')}</dd>`))}</dl>`) : ''}
     ${a.socials?.length ? raw(html`<div class="socials">${a.socials.map((x) => raw(html`<a href="${x.url}" target="_blank" rel="noopener">${x.name}</a>`))}</div>`) : ''}
     <div class="prose">${raw(textToHTML(a.text || a.extract))}</div>
-    <p class="meta">Source: <a href="${a.url}" target="_blank" rel="noopener">Wikipedia</a> (CC BY-SA 4.0)</p>
+    <p class="meta">Source: <a href="${a.url}" target="_blank" rel="noopener">Wikipedia</a> (CC BY-SA 4.0) · <button type="button" class="ghost small" id="rcite">Cite</button></p>
   </article>`;
+  $('#rcite').addEventListener('click', () => openCite({ kind: 'web', title: a.title, container: 'Wikipedia', publisher: 'Wikimedia Foundation', url: a.url }));
 }
 
 /* ───────────── Pulse ───────────── */
@@ -467,11 +547,11 @@ async function vaultView() {
   try { items = await vault.all(); } catch { /* ignore */ }
   const total = items.reduce((n, i) => n + JSON.stringify(i).length, 0);
   view.innerHTML = html`<section class="vault">
-    <header class="section-head"><h2>📦 Your Vault</h2><p class="muted">${items.length} article${items.length === 1 ? '' : 's'} · ${bytes(total)} on this device · readable with zero connection.</p></header>
+    <header class="section-head"><h2>📦 Your Vault</h2><p class="muted">${items.length} saved item${items.length === 1 ? '' : 's'} (${items.filter((i) => !i.kind).length} articles, ${items.filter((i) => i.kind === 'paper').length} papers, ${items.filter((i) => i.kind === 'book').length} books) · ${bytes(total)} on this device · readable with no connection.</p></header>
     ${items.length ? raw(html`<div class="shelf">${items.map((a) => raw(html`
       <a class="tile" href="#/read/${encodeURIComponent(a.id)}">
-        ${a.image ? raw(html`<img src="${a.image}" alt="">`) : raw('<span class="ph">✦</span>')}
-        <b>${a.title}</b><span class="meta">${a.description || a.lang.toUpperCase()}</span>
+        ${a.image ? raw(html`<img src="${a.image}" alt="">`) : raw(`<span class="ph">${a.kind === 'paper' ? '📄' : a.kind === 'book' ? '📗' : '✦'}</span>`)}
+        <b>${a.title}</b><span class="meta">${a.kind === 'paper' ? 'Paper · ' : a.kind === 'book' ? 'Book · ' : ''}${a.description || (a.lang || '').toUpperCase()}</span>
         <button class="x" data-id="${a.id}" title="Remove" aria-label="Remove ${a.title}">✕</button>
       </a>`))}</div>`)
     : raw('<div class="empty"><h3>Nothing saved yet.</h3><p class="muted">Search anything and tap <b>Save for offline</b>, or grab a whole pack from the <a href="#/offline">Offline</a> tab.</p></div>')}
@@ -534,7 +614,8 @@ async function offlineView() {
               <tr><td>Things you've viewed</td><td class="ok">✅ Yes</td><td>Last good copy of every response is cached automatically.</td></tr>
               <tr><td>Saved articles / packs</td><td class="ok">✅ Yes</td><td>Stored in IndexedDB (your Vault) with facts and images.</td></tr>
               <tr><td>All of Wikipedia</td><td class="ok">✅ Yes*</td><td>Full English Wikipedia as a Kiwix ZIM: ~110 GB with images, ~50 GB text-only, ~1–5 GB for “top articles” editions.</td></tr>
-              <tr><td>An AI that answers questions</td><td class="mid">🟡 Possible</td><td>Small open models (1–8B params, ~1–5 GB) run on-device via WebGPU + retrieval over the offline pack.</td></tr>
+              <tr><td>Saved papers and free books</td><td class="ok">✅ Yes</td><td>Paper abstracts and whole Project Gutenberg books go into your Vault too.</td></tr>
+              <tr><td>Ask (AI answers)</td><td class="mid">🟡 Online only</td><td>Ask uses Claude with your own API key, so it needs a connection. Fully offline answers would need a small model running on the device.</td></tr>
               <tr><td>News, socials, weather, quakes</td><td class="no">❌ No</td><td>Live by definition. Offline you see the last snapshot, timestamped.</td></tr>
             </tbody>
           </table>

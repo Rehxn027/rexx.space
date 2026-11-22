@@ -22,6 +22,9 @@
     </a>
     <nav class="tabs" aria-label="Sections">
       <a href="#/" data-tab="home">Today</a>
+      <a href="#/research" data-tab="research">Research</a>
+      <a href="#/library" data-tab="library">Library</a>
+      <a href="#/ask" data-tab="ask">Ask</a>
       <a href="#/pulse" data-tab="pulse">Pulse</a>
       <a href="#/planet" data-tab="planet">Planet</a>
       <a href="#/vault" data-tab="vault">Vault <span id="vault-count" class="pill"></span></a>
@@ -38,11 +41,7 @@
     <form id="search" class="omnibox" role="search" autocomplete="off">
       <span class="omni-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg></span>
       <input id="q" name="q" type="search" placeholder="Search anything — Marie Curie, Tokyo, black holes, the Moon landing…" aria-label="Search" spellcheck="false">
-      <select id="lang" aria-label="Wikipedia language">
-        <option value="en">EN</option><option value="es">ES</option><option value="fr">FR</option>
-        <option value="de">DE</option><option value="hi">HI</option><option value="ur">UR</option>
-        <option value="ar">AR</option><option value="ja">JA</option><option value="pt">PT</option>
-      </select>
+      <select id="lang" aria-label="Language of Wikipedia and other sources"><option value="en" title="English">EN</option><option value="es" title="Español">ES</option><option value="fr" title="Français">FR</option><option value="de" title="Deutsch">DE</option><option value="it" title="Italiano">IT</option><option value="pt" title="Português">PT</option><option value="nl" title="Nederlands">NL</option><option value="pl" title="Polski">PL</option><option value="sv" title="Svenska">SV</option><option value="ru" title="Русский">RU</option><option value="uk" title="Українська">UK</option><option value="tr" title="Türkçe">TR</option><option value="ar" title="العربية">AR</option><option value="fa" title="فارسی">FA</option><option value="ur" title="اردو">UR</option><option value="hi" title="हिन्दी">HI</option><option value="bn" title="বাংলা">BN</option><option value="pa" title="ਪੰਜਾਬੀ">PA</option><option value="mr" title="मराठी">MR</option><option value="ta" title="தமிழ்">TA</option><option value="te" title="తెలుగు">TE</option><option value="zh" title="中文">ZH</option><option value="ja" title="日本語">JA</option><option value="ko" title="한국어">KO</option><option value="id" title="Bahasa Indonesia">ID</option><option value="ms" title="Bahasa Melayu">MS</option><option value="vi" title="Tiếng Việt">VI</option><option value="th" title="ไทย">TH</option><option value="he" title="עברית">HE</option><option value="el" title="Ελληνικά">EL</option><option value="sw" title="Kiswahili">SW</option></select>
       <button type="submit">Search</button>
       <ul id="suggest" class="suggest" role="listbox" hidden></ul>
     </form>
@@ -55,7 +54,7 @@
   <main id="view" tabindex="-1"></main>
 
   <footer class="foot">
-    <p>Data from Wikipedia, Wikidata, OpenStreetMap, Open‑Meteo, USGS, REST Countries, Hacker News, Bluesky, Mastodon, Open Library &amp; GDELT. Content belongs to its respective authors and licenses.</p>
+    <p>Data from Wikipedia, Wikidata, Wiktionary, Wikivoyage, Wikimedia Commons, OpenAlex, Europe PMC, Project Gutenberg, Open Library, OpenStreetMap, Open‑Meteo, USGS, REST Countries, Frankfurter (ECB rates), GDELT, Hacker News, Bluesky and Mastodon. Ask answers are written by Claude. Content belongs to its respective authors and licences.</p>
     <p><a href="https://github.com/rehxn027/rexx.space">Source on GitHub</a> · Built as an installable, offline-first PWA.</p>
   </footer>
 

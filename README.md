@@ -15,27 +15,36 @@ Installable, private, and **works offline**.
 
 ## ✦ What it does
 
-Type anything, like *Marie Curie*, *Tokyo*, *black holes* or *the Moon landing*. rexx works out what kind of thing it is (a person, place, country, event or work) and builds a dashboard for it from about a dozen open data sources at once:
+Type anything, like *Marie Curie*, *Tokyo*, *serendipity* or *the Moon landing*. rexx works out what kind of thing it is (a person, place, country, event, word or idea) and builds a page for it from more than 20 open data sources at once:
 
-| Orbit | What you get | Source |
+| Area | What you get | Source |
 |---|---|---|
-| 🧠 **Knowledge** | Summary, full article, related topics | Wikipedia (9 languages) |
+| 🧠 **Encyclopedia** | Summary, full article, related topics | Wikipedia (31 languages) |
 | 🧬 **Facts** | Born/died, occupation, awards, population, capital, founders… | Wikidata |
-| 🔗 **Socials** | Official website, X, Instagram, YouTube, GitHub, Mastodon, Bluesky… | Wikidata |
-| 🗺️ **Places** | Interactive map, live weather and a 5‑day forecast | OpenStreetMap, Open‑Meteo |
-| 🏳️ **Countries** | Flag, capital, languages, currency, population | REST Countries |
-| 📰 **News & events** | Latest coverage worldwide | GDELT |
-| 🦋 **Social pulse** | What people are posting | Bluesky, Mastodon, Hacker News |
-| 📚 **Books** | Books about the topic | Open Library |
-| 🌋 **Live planet** | Earthquakes this week and the ISS position, updated live | USGS, wheretheiss.at |
-| ⏳ **Today** | Featured article, in the news, most-read, on this day, picture of the day | Wikimedia feeds |
+| 🔗 **Official accounts** | Website, X, Instagram, YouTube, GitHub, Mastodon, Bluesky… | Wikidata |
+| 📖 **Dictionary** | Definitions, pronunciation with audio, examples, synonyms | Free Dictionary API, Wiktionary |
+| 📄 **Research papers** | About 250 million papers, with citation counts, abstracts and free PDFs | OpenAlex, Europe PMC (biomedicine) |
+| 📗 **Free books** | 75,000+ public-domain books to read in the app or save offline | Project Gutenberg (via Gutendex) |
+| 📚 **Other books** | Books about the topic | Open Library |
+| 🖼️ **Images** | Freely licensed photos and illustrations | Wikimedia Commons |
+| 🗺️ **Places** | Map, weather, 5-day forecast, sunrise/sunset, air quality, nearby places, travel guide | OpenStreetMap, Open‑Meteo, Wikipedia, Wikivoyage |
+| 🏳️ **Countries** | Flag, capital, languages, currency and its exchange rate | REST Countries, Frankfurter (ECB) |
+| 📰 **News** | Latest coverage worldwide | GDELT |
+| 🦋 **Public conversation** | What people are posting | Bluesky, Mastodon, Hacker News |
+| ⏳ **History** | On this day, for any date: events, births, deaths, holidays | Wikimedia feeds |
+| 🌋 **Live planet** | Earthquakes this week and the ISS position | USGS, wheretheiss.at |
+| 💬 **Ask** | Answers to questions in any language, citing the sources it used | Claude (Anthropic), with your own API key |
+| 📝 **Cite** | APA, MLA, Chicago, Harvard and BibTeX for articles, papers and books | Built in |
 
 ### Sections
 
-- **Today:** the world's front page, refreshed daily.
+- **Today:** the world's front page, refreshed daily, plus "On this day" for any date.
+- **Research:** search papers, sort by relevance, citations or date, filter to free-to-read, cite or save any paper.
+- **Library:** browse and read free books, cite them, and save whole books for offline reading.
+- **Ask:** ask a question and get an answer with numbered citations back to Wikipedia articles and papers.
 - **Pulse:** trending on Wikipedia, Hacker News, Mastodon and Bluesky.
 - **Planet:** a live map of earthquakes and the International Space Station.
-- **Vault:** articles you saved to your device. They work without a connection.
+- **Vault:** articles, papers and books you saved to your device. They work without a connection.
 - **Offline:** download knowledge packs (*Today's top 50*, *Space*, *History*, *Survival kit*) and manage storage.
 
 Little extras: <kbd>/</kbd> focuses search, arrow keys move through suggestions, 🎲 **Teleport** opens a random article, and reduced-motion settings are respected.
@@ -62,7 +71,8 @@ Animations pause when the tab is hidden and become a still image if your device 
 | Anything you've viewed | ✅ | The last good response from every source is cached automatically. |
 | Saved articles and packs | ✅ | IndexedDB "Vault": full text, facts, socials and an inline thumbnail. |
 | **All of Wikipedia** | ✅* | Kiwix ZIM files: about 110 GB with images, about 50 GB text-only, 1–5 GB for "top articles" editions. |
-| An AI you can ask questions | 🟡 | Small open models (1–8B parameters) run on-device with WebGPU over the offline pack. |
+| Saved papers and free books | ✅ | Paper abstracts and whole books are stored in the Vault. |
+| Ask (AI answers) | 🟡 | Needs a connection: it calls Claude with your key. Fully offline answers would need an on-device model. |
 | News, socials, weather, quakes | ❌ | Live by definition. Offline, you see the last snapshot. |
 
 Anything that has already happened can be stored on your device. Anything happening *right now* has to reach you over some network. The full roadmap (Kiwix import, on-device AI, mesh and sneakernet sync) is in **[docs/OFFLINE.md](docs/OFFLINE.md)**.
@@ -96,6 +106,14 @@ Open the site in Chrome, Edge or Safari, then choose **Install** or **Add to Hom
 
 ---
 
+## 💬 About Ask and your API key
+
+Ask sends your question, plus the Wikipedia articles and paper abstracts it found, to Claude (model `claude-opus-5-5`) through the official [Anthropic SDK](https://github.com/anthropics/anthropic-sdk-typescript), bundled in `js/vendor/`. Claude reads those sources as documents with citations turned on, so each claim in the answer links back to where it came from.
+
+- You add your own key from the [Claude Console](https://console.anthropic.com/settings/keys). Questions are billed to your Anthropic account, usually a few US cents each.
+- The key stays in your browser and is sent only to `api.anthropic.com`. rexx.space has no server. Choose "Remember on this device" only on a device you trust.
+- If Claude's safety system declines a question, the request automatically falls back to another model (`fallbacks: "default"`).
+
 ## 🧩 How it's built
 
 ```
@@ -105,6 +123,10 @@ css/themes.css        26 themes (each just redefines the tokens)
 css/fonts.css         self-hosted @font-face rules (fonts/ folder)
 js/app.js             router + views (Today, Search, Pulse, Planet, Vault, Offline)
 js/api.js             every data source; all free, keyless and CORS-enabled
+js/ask.js             Ask: gathers sources and calls Claude through the Anthropic SDK
+js/cite.js            APA / MLA / Chicago / Harvard / BibTeX formatter
+js/views/             Research, Library, Ask, On this day and the Cite dialog
+js/vendor/            the Anthropic SDK bundled as one browser module
 js/vault.js           IndexedDB storage for offline articles
 js/themes.js          theme list + picker
 js/fx.js              animated backgrounds for the immersive themes
@@ -128,8 +150,7 @@ manifest.webmanifest  PWA install metadata
 ## 🗺️ Roadmap
 
 - [ ] Import a Kiwix `.zim` file for all of Wikipedia offline
-- [ ] On-device Q&A ("Ask rexx") with WebLLM and retrieval over the Vault
-- [ ] Timeline view: everything that happened on any date
+- [ ] Fully offline Ask with a small on-device model over the Vault
 - [ ] Compare mode: two people, cities or countries side by side
 - [ ] Export and share Vault packs as a single file (sneakernet)
 - [ ] More languages for the UI

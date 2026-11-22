@@ -38,7 +38,7 @@ banner = '''
     <a href="#/q/Marie%20Curie">Marie Curie</a>, <a href="#/q/Albert%20Einstein">Albert Einstein</a>,
     <a href="#/q/Tokyo">Tokyo</a>, <a href="#/q/Taj%20Mahal">Taj Mahal</a>, <a href="#/q/Black%20hole">Black hole</a> and
     <a href="#/q/Apollo%2011">Apollo 11</a>. Themes, saving to the Vault and offline reading all work here.
-    Live news, social posts, weather and maps appear when you run the full app.</p></div>
+    Citations work too. Live sources (research papers, free books, dictionary, images, news, social posts, weather, maps and Ask) need the full app.</p></div>
 '''
 body = body.replace('  <div id="theme-panel"', banner + '  <div id="theme-panel"', 1)
 body = re.sub(r'<p>Data from Wikipedia.*?</p>',
