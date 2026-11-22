@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>rexx.space — the world, in one search</title>
+  <meta name="description" content="One search for everything: knowledge, people, places, live events and the social pulse of the internet. Installable, and works offline.">
+  <meta name="theme-color" content="#f6f1e7">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon.svg">
+  <script>(function () { var t = 'auto'; try { t = localStorage.getItem('rexx-theme') || 'auto'; } catch (e) {} if (t === 'auto') { var h = document.documentElement.dataset.theme; t = h === 'dark' || (h !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches) ? 'night' : 'paper'; } if (t === 'custom') { var c = null; try { c = JSON.parse(localStorage.getItem('rexx-custom-vars')); } catch (e) {} if (c) { for (var k in c.vars) document.documentElement.style.setProperty(k, c.vars[k]); t = c.base; } else { t = 'light'; } } document.documentElement.dataset.look = t; })();</script>
+  <link rel="stylesheet" href="css/fonts.css">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/themes.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#/" aria-label="rexx.space home">
+      <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--accent)"/><circle cx="14" cy="14" r="6.5" fill="none" stroke="var(--on-accent)" stroke-width="2.8"/><path d="M19 19l6 6" stroke="var(--on-accent)" stroke-width="3" stroke-linecap="round"/></svg>
+      <span>rexx<b>.space</b></span>
+    </a>
+    <nav class="tabs" aria-label="Sections">
+      <a href="#/" data-tab="home">Today</a>
+      <a href="#/research" data-tab="research">Research</a>
+      <a href="#/library" data-tab="library">Library</a>
+      <a href="#/ask" data-tab="ask">Ask</a>
+      <a href="#/live" data-tab="live">Live</a>
+      <a href="#/vault" data-tab="vault">Vault <span id="vault-count" class="pill"></span></a>
+      <a href="#/offline" data-tab="offline">Offline</a>
+    </nav>
+    <span id="net" class="net" title="Connection status"></span>
+    <button id="theme-btn" class="theme-btn" type="button" aria-haspopup="true" aria-expanded="false" title="Change theme"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 1.5a6.5 6.5 0 0 1 0 13z" fill="currentColor"/></svg> Theme</button>
+  </header>
+  <div id="theme-panel" class="theme-panel" hidden></div>
+
+  <section class="hero" id="hero">
+    <h1 class="hero-title">Ask <span class="accent-word">anything</span>.</h1>
+    <p class="hero-sub">Events, people, places, ideas and the live social pulse — one search, pulled from the open internet.</p>
+    <form id="search" class="omnibox" role="search" autocomplete="off">
+      <span class="omni-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg></span>
+      <input id="q" name="q" type="search" placeholder="Search anything — Marie Curie, Tokyo, black holes, the Moon landing…" aria-label="Search" spellcheck="false">
+      <select id="lang" aria-label="Language of Wikipedia and other sources"><option value="en" title="English">EN</option><option value="es" title="Español">ES</option><option value="fr" title="Français">FR</option><option value="de" title="Deutsch">DE</option><option value="it" title="Italiano">IT</option><option value="pt" title="Português">PT</option><option value="nl" title="Nederlands">NL</option><option value="pl" title="Polski">PL</option><option value="sv" title="Svenska">SV</option><option value="ru" title="Русский">RU</option><option value="uk" title="Українська">UK</option><option value="tr" title="Türkçe">TR</option><option value="ar" title="العربية">AR</option><option value="fa" title="فارسی">FA</option><option value="ur" title="اردو">UR</option><option value="hi" title="हिन्दी">HI</option><option value="bn" title="বাংলা">BN</option><option value="pa" title="ਪੰਜਾਬੀ">PA</option><option value="mr" title="मराठी">MR</option><option value="ta" title="தமிழ்">TA</option><option value="te" title="తెలుగు">TE</option><option value="zh" title="中文">ZH</option><option value="ja" title="日本語">JA</option><option value="ko" title="한국어">KO</option><option value="id" title="Bahasa Indonesia">ID</option><option value="ms" title="Bahasa Melayu">MS</option><option value="vi" title="Tiếng Việt">VI</option><option value="th" title="ไทย">TH</option><option value="he" title="עברית">HE</option><option value="el" title="Ελληνικά">EL</option><option value="sw" title="Kiswahili">SW</option></select>
+      <button type="submit">Search</button>
+      <ul id="suggest" class="suggest" role="listbox" hidden></ul>
+    </form>
+    <div class="hero-actions">
+      <button class="ghost" id="teleport" type="button">🎲 Teleport to a random page</button>
+      <span class="hint">Press <kbd>/</kbd> to search</span>
+    </div>
+  </section>
+
+  <main id="view" tabindex="-1"></main>
+
+  <footer class="foot">
+    <p>Data from Wikipedia, Wikidata, Wiktionary, Wikivoyage, Wikimedia Commons, OpenAlex, arXiv, Europe PMC/PubMed, Crossref, Project Gutenberg, Internet Archive, Open Library, OpenStreetMap, Open‑Meteo, USGS, REST Countries, Frankfurter (ECB rates), CoinGecko, Finnhub, ESPN, TheSportsDB, MyMemory, GDELT, Hacker News, Bluesky, Mastodon, Reddit and Lemmy. Ask answers are written by Claude. Content belongs to its respective authors and licences.</p>
+    <p><a href="https://github.com/rehxn027/rexx.space">Source on GitHub</a> · Built as an installable, offline-first PWA.</p>
+  </footer>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
