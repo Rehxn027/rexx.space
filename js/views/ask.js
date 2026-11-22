@@ -5,22 +5,35 @@ import { html, raw, esc, $, toast, miniMarkdown } from '../ui.js';
 
 const history = []; // this visit's questions and answers
 
-/** Build the answer HTML from the final message: text blocks plus citation markers. */
+/**
+ * Build the answer HTML from the final message: text blocks plus citation markers.
+ * Citations point at a provided source (document_index) or a web page Claude found (url);
+ * web pages are appended to the source list as they are first cited.
+ */
 function renderAnswer(msg, sources) {
   let body = '';
   const used = new Set();
+  const all = [...sources];
+  const indexOf = (c) => {
+    if (c.url) {
+      let i = all.findIndex((x) => x.url === c.url);
+      if (i < 0) { all.push({ kind: 'Web page', title: c.title || c.url, url: c.url }); i = all.length - 1; }
+      return i;
+    }
+    return c.document_index ?? null;
+  };
   for (const block of msg.content) {
     if (block.type !== 'text') continue;
     body += block.text;
-    const nums = [...new Set((block.citations || []).map((c) => c.document_index).filter((n) => n != null))];
+    const nums = [...new Set((block.citations || []).map(indexOf).filter((n) => n != null))];
     for (const n of nums) used.add(n);
     if (nums.length) body += nums.map((n) => `${n}`).join('');
   }
   const htmlBody = miniMarkdown(body).replace(/(\d+)/g, (_, n) => {
-    const s = sources[Number(n)];
+    const s = all[Number(n)];
     return s ? `<sup><a href="#src-${Number(n) + 1}" class="cite-ref" title="${esc(s.title)}">${Number(n) + 1}</a></sup>` : '';
   });
-  return { htmlBody, used };
+  return { htmlBody, used, all };
 }
 
 function sourcesHTML(sources, used) {
@@ -47,6 +60,7 @@ export function askView(view, arg) {
           <form id="aform" class="ask-form">
             <label class="sr-only" for="aq">Question</label>
             <textarea id="aq" rows="3" placeholder="e.g. Why did the Mughal Empire decline? · How do mRNA vaccines work? · What caused the 2008 financial crisis?">${preset}</textarea>
+            <label class="check web-check"><input type="checkbox" id="aweb"> Also search the live web (for recent events; about 1 US cent per search)</label>
             <div class="ask-row"><button type="submit" id="ago" ${hasKey ? '' : 'disabled'}>Ask</button><button type="button" class="ghost" id="astop" hidden>Stop</button><span class="meta" id="astatus"></span></div>
           </form>
           <div id="aout"></div>
@@ -87,7 +101,9 @@ export function askView(view, arg) {
   };
   drawKey();
 
-  const out = $('#aout'), status = $('#astatus'), stopBtn = $('#astop'), go = $('#ago');
+  const out = $('#aout'), status = $('#astatus'), stopBtn = $('#astop'), go = $('#ago'), web = $('#aweb');
+  try { web.checked = localStorage.getItem('rexx-ask-web') === '1'; } catch { /* ignore */ }
+  web.addEventListener('change', () => { try { localStorage.setItem('rexx-ask-web', web.checked ? '1' : '0'); } catch { /* ignore */ } });
   const drawHistory = () => {
     out.innerHTML = history.map((h) => html`<section class="answer">
       <p class="q-line">${h.q}</p>
@@ -121,14 +137,14 @@ export function askView(view, arg) {
         text += delta;
         if (!pending) { pending = true; requestAnimationFrame(() => { body.innerHTML = miniMarkdown(text); pending = false; }); }
         status.textContent = 'Writing…';
-      }, ctrl.signal);
+      }, ctrl.signal, { webSearch: web.checked });
       if (msg.stop_reason === 'refusal') {
         body.innerHTML = '<p class="muted">Claude declined to answer this question. Try rephrasing it.</p>';
         history.push({ q, answerHTML: body.innerHTML, sources: [], sourcesHTML: '' });
       } else {
-        const { htmlBody, used } = renderAnswer(msg, sources);
+        const { htmlBody, used, all } = renderAnswer(msg, sources);
         const note = msg.stop_reason === 'max_tokens' ? '<p class="meta">The answer was cut off because it reached the length limit.</p>' : '';
-        history.push({ q, answerHTML: htmlBody + note, sources, sourcesHTML: sourcesHTML(sources, used) });
+        history.push({ q, answerHTML: htmlBody + note, sources: all, sourcesHTML: sourcesHTML(all, used) });
       }
       status.textContent = '';
       drawHistory();

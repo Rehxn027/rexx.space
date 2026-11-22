@@ -395,3 +395,97 @@ code { font-family: var(--mono); font-size: .9em; background: var(--surface-2); 
 .cite-actions { display: flex; gap: 10px; }
 .tabs { scroll-snap-type: x proximity; }
 @media (max-width: 1180px) and (min-width: 721px) { .tabs a { padding: 7px 9px; } .topbar { gap: 12px; } }
+
+/* ── v3: live section, markets, sports, news, charts ── */
+.subtabs { display: flex; gap: 4px; flex-wrap: wrap; margin: 16px 0 4px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.subtabs a { color: var(--muted); padding: 6px 14px; border-radius: var(--pill); font-weight: 500; }
+.subtabs a:hover { color: var(--text); background: var(--surface-2); text-decoration: none; }
+.subtabs a.active { color: var(--text); background: var(--accent-soft); }
+.topic-chips, .league-chips { margin: 8px 0 0; }
+.league-chips a.on { outline: 2px solid var(--accent); }
+.web-check { display: flex; margin-top: 8px; }
+
+.news-list .news-item { display: flex; gap: 14px; align-items: flex-start; }
+.news-img { width: 112px; aspect-ratio: 16 / 10; object-fit: cover; border-radius: var(--radius-sm); flex: none; background: var(--surface-2); }
+.news-main { display: grid; gap: 3px; min-width: 0; }
+.news-title { font-weight: 600; color: var(--text); }
+.news-actions { margin-top: 4px; }
+.summary { margin-top: 8px; padding: 12px 14px; border-left: 3px solid var(--accent); background: var(--surface-2); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; font-size: 15px; line-height: 1.6; }
+.summary p { margin: 0 0 6px; } .summary ul { margin: 4px 0 8px; padding-left: 20px; }
+.summary li, .summary ol li { border: 0; padding: 2px 0; }
+.summary ol > li::before { content: none; }
+.summary.streaming::after { content: "▍"; color: var(--accent); animation: blink 1s steps(1) infinite; }
+@media (max-width: 560px) { .news-img { width: 84px; } }
+
+/* charts: one series in the accent colour, recessive grid and axes */
+.chart { position: relative; margin: 0; color: var(--accent); }
+.chart svg { display: block; overflow: visible; touch-action: pan-y; }
+.chart-svg { width: 100%; }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+.chart .axis { fill: var(--muted); font: 11px var(--font); font-variant-numeric: tabular-nums; }
+.chart .line { fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart .area { fill: currentColor; opacity: .1; }
+.chart .end, .chart .hover-dot { fill: currentColor; stroke: var(--surface-solid); stroke-width: 2; }
+.chart .xhair { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+.chart-tip { position: absolute; top: 4px; transform: translateX(-50%); pointer-events: none; background: var(--surface-solid); color: var(--text); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 4px 9px; font-size: 12.5px; display: grid; text-align: center; box-shadow: 0 6px 18px rgba(0,0,0,.15); white-space: nowrap; }
+.chart-tip span { color: var(--muted); font-size: 11.5px; }
+.chart-title { margin: 14px 0 6px; font: 600 14px var(--font); }
+.spark { color: var(--muted); display: block; }
+.spark.up { color: var(--ok); } .spark.down { color: var(--bad); }
+
+/* markets */
+.mkt { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+.mkt th { text-align: left; color: var(--muted); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.mkt td { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.mkt .num { text-align: right; white-space: nowrap; }
+.mkt .coin { width: 20px; height: 20px; vertical-align: -4px; margin-right: 8px; border-radius: 50%; }
+.meta-inline { color: var(--muted); font-size: 12.5px; }
+.chg { font-weight: 600; white-space: nowrap; }
+.chg.up { color: var(--ok); } .chg.down { color: var(--bad); }
+.fx-row { display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: end; }
+.fx-row label { display: grid; gap: 4px; font-size: 12.5px; color: var(--muted); }
+.fx-row input, .fx-row select { padding: 9px 12px; border-radius: var(--radius-sm); border: 1px solid var(--line-strong); background: var(--surface); color: var(--text); font: 15px var(--font); min-width: 0; }
+.fx-row input { width: 130px; }
+.fx-result { margin: 0; font-size: 18px; flex: 1 1 260px; }
+.fx-table { margin-top: 14px; }
+.fx-table tbody { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); column-gap: 18px; }
+.fx-table thead { display: none; }
+.fx-table tr { display: flex; justify-content: space-between; border-bottom: 1px solid var(--line); }
+.fx-table td { border: 0; padding: 6px 2px; }
+.quote-head { display: flex; gap: 10px; align-items: center; }
+.quote-head img { width: 36px; height: 36px; border-radius: 8px; object-fit: contain; background: #fff; }
+.quote-head b { display: block; }
+.big-price { font: var(--display-weight) 30px var(--display); margin: 10px 0 6px; font-variant-numeric: tabular-nums; }
+.big-price .chg { font: 600 15px var(--font); margin-left: 6px; }
+.quote-stats { grid-template-columns: max-content 1fr; font-size: 14px; }
+@media (max-width: 560px) { .spark-col { display: none; } .mkt td, .mkt th { padding: 7px 4px; } }
+
+/* sports */
+.scores { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 270px), 1fr)); gap: 12px; }
+.game { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px 12px; display: grid; gap: 6px; background: var(--surface); }
+.game .state { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; display: flex; align-items: center; gap: 6px; }
+.game.in { border-color: var(--bad); }
+.game.in .state { color: var(--bad); font-weight: 700; }
+.live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--bad); animation: pulse-dot 1.4s infinite; }
+@keyframes pulse-dot { 50% { opacity: .3; } }
+.team { display: flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; }
+.team img { width: 22px; height: 22px; object-fit: contain; }
+.team span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.team b { font-size: 17px; }
+.team.win span, .team.win b { font-weight: 700; }
+.game.post .team:not(.win) { color: var(--muted); }
+.team-head { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }
+.team-head img { width: 48px; height: 48px; object-fit: contain; }
+.team-head b { display: block; font-size: 18px; }
+.team-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 8px 24px; }
+.team-cols h4 { margin: 8px 0 4px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+
+/* search page extras */
+.lang-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.lang-chips button { font-weight: 400; }
+.lang-chips b { color: var(--accent); margin-right: 2px; }
+.elsewhere { display: flex; flex-wrap: wrap; gap: 6px; }
+.translate-form { margin-top: 12px; font-size: 14px; }
+.tr-out { flex-basis: 100%; }
+.scan-frame { margin-top: 18px; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--surface-2); }
+.scan-frame iframe { width: 100%; height: min(80vh, 760px); border: 0; display: block; }

@@ -2,7 +2,9 @@ import * as api from './api.js';
 import * as vault from './vault.js';
 import { mountPicker } from './themes.js';
 import { researchView, paperHTML, wirePapers } from './views/research.js';
-import { libraryView, bookView } from './views/library.js';
+import { libraryView, bookView, archiveView, scanView } from './views/library.js';
+import { liveNav, newsView, marketsView, sportsView, newsItemsHTML, wireSummaries, stockCardHTML, finnhubKeyForm, teamHTML, forumList, elsewhereHTML } from './views/live.js';
+import { sparkline } from './chart.js';
 import { askView } from './views/ask.js';
 import { dayView } from './views/day.js';
 import { openCite, wikiRecord, paperRecord } from './views/cite-dialog.js';
@@ -107,7 +109,12 @@ $('#teleport').addEventListener('click', async () => {
 
 const ctx = { refreshVaultCount: () => refreshVaultCount() };
 const routes = {
-  '': home, pulse, planet, vault: vaultView, offline: offlineView,
+  '': home, vault: vaultView, offline: offlineView,
+  live: (arg) => live(arg),
+  pulse: () => location.replace('#/live/social'),
+  planet: () => location.replace('#/live/planet'),
+  archive: (arg) => archiveView(view, arg, ctx),
+  scan: (arg) => scanView(view, arg, ctx),
   research: (arg) => researchView(view, arg, ctx),
   library: (arg) => libraryView(view, arg, ctx),
   book: (arg) => bookView(view, arg, ctx),
@@ -122,7 +129,7 @@ function route() {
   clearInterval(planetTimer);
   const [, name = '', ...rest] = location.hash.replace(/^#/, '').split('/');
   const fn = routes[name] || home;
-  const tab = { book: 'library', q: '', read: 'vault', day: 'home' }[name] ?? (name || 'home');
+  const tab = { book: 'library', archive: 'library', scan: 'library', q: '', read: 'vault', day: 'home', pulse: 'live', planet: 'live' }[name] ?? (name || 'home');
   $$('.tabs a').forEach((a) => a.classList.toggle('active', a.dataset.tab === tab));
   hero.classList.toggle('compact', name !== '');
   suggest.hidden = true;
@@ -275,6 +282,9 @@ async function search(q) {
     <div class="grid" id="sgrid">
       ${raw(card('📖 Dictionary', null, { optional: true, wide: true, cls: 'dict' }))}
       ${raw(card('🧬 Key facts', null, { cls: 'facts' }))}
+      ${raw(card('💹 Share price', null, { optional: true, cls: 'stock' }))}
+      ${raw(card('🪙 Price', null, { optional: true }))}
+      ${raw(card('🏆 Results and fixtures', null, { optional: true, wide: true }))}
       ${raw(card('🗺️ On the map', null, { cls: 'mapcard', optional: true }))}
       ${raw(card('🌤️ Weather there now', null, { optional: true }))}
       ${raw(card('🏳️ Country snapshot', null, { optional: true }))}
@@ -282,13 +292,17 @@ async function search(q) {
       ${raw(card('📍 Nearby', null, { optional: true }))}
       ${raw(card('📄 Research papers', null, { optional: true, wide: true, cls: 'papers-card' }))}
       ${raw(card('🖼️ Images', null, { optional: true, wide: true }))}
-      ${raw(card('📰 Latest news', null, { optional: true }))}
+      ${raw(card('📰 Latest news', null, { optional: true, wide: true }))}
       ${raw(card('🦋 Bluesky says', null, { optional: true }))}
       ${raw(card('🐘 Mastodon #tag', null, { optional: true }))}
+      ${raw(card('👽 Reddit', null, { optional: true }))}
+      ${raw(card('🗨️ Lemmy', null, { optional: true }))}
       ${raw(card('💬 Hacker News', null, { optional: true }))}
       ${raw(card('📚 Books', null, { optional: true }))}
       ${raw(card('📗 Free to read', null, { optional: true }))}
       ${raw(card('🔭 Related', null))}
+      ${raw(card('🌐 In other languages', null, { optional: true }))}
+      ${raw(card('🔎 Search elsewhere', null))}
     </div>`;
 
   $('#save').addEventListener('click', () => toggleSave(s, title, id));
@@ -298,7 +312,7 @@ async function search(q) {
   });
 
   $('#cite').addEventListener('click', () => openCite(wikiRecord(s, api.getLang())));
-  const [dictEl, factsEl, mapEl, wxEl, ctyEl, travelEl, nearEl, paperEl, imgEl, newsEl, bskyEl, mastoEl, hnEl, booksEl, freeEl, relEl] = $$('#sgrid .card .body');
+  const [dictEl, factsEl, stockEl, coinEl, teamEl, mapEl, wxEl, ctyEl, travelEl, nearEl, paperEl, imgEl, newsEl, bskyEl, mastoEl, redditEl, lemmyEl, hnEl, booksEl, freeEl, relEl, langsEl, elseEl] = $$('#sgrid .card .body');
   const plainTitle = title.replace(/\s*\(.*\)$/, '');
   const coordFromSummary = s.coordinates ? { lat: s.coordinates.lat, lon: s.coordinates.lon } : null;
 
@@ -361,7 +375,24 @@ async function search(q) {
       ${d.audio ? raw(html` <button type="button" class="ghost small" id="say" data-src="${d.audio}" aria-label="Play pronunciation">🔊 Listen</button>`) : ''}</div>
     <div class="dict-body">${d.meanings.slice(0, 4).map((m) => raw(html`<div class="pos"><i>${m.pos}</i><ol>${m.defs.map((x) => raw(html`<li>${x.text}${x.example ? raw(html`<span class="meta">“${x.example}”</span>`) : ''}</li>`))}</ol>
       ${m.synonyms.length ? raw(html`<span class="meta">Synonyms: ${m.synonyms.join(', ')}</span>`) : ''}</div>`))}</div>
-    <a class="more" href="${d.source}" target="_blank" rel="noopener">More on Wiktionary ↗</a>`);
+    <a class="more" href="${d.source}" target="_blank" rel="noopener">More on Wiktionary ↗</a>
+    <form class="tool-form translate-form" data-word="${d.word}">
+      <label for="tr-to">Translate “${d.word}” into</label>
+      <select id="tr-to">${raw([...langSel.options].filter((o) => o.value !== api.getLang()).map((o) => `<option value="${o.value}">${esc(o.title)}</option>`).join(''))}</select>
+      <button type="submit" class="ghost">Translate</button>
+      <output class="tr-out" aria-live="polite"></output>
+    </form>`);
+  dictEl.addEventListener('submit', async (e) => {
+    const f = e.target.closest('.translate-form');
+    if (!f) return;
+    e.preventDefault();
+    const out = f.querySelector('.tr-out');
+    out.textContent = 'Translating…';
+    try {
+      const r = await api.translate(f.dataset.word, api.getLang(), f.querySelector('select').value);
+      out.innerHTML = html`<b>${r.text}</b>${r.alternatives.length ? raw(html` <span class="meta">also: ${r.alternatives.join(', ')}</span>`) : ''} <span class="meta">· machine translation (MyMemory)</span>`;
+    } catch { out.textContent = 'Translation isn\'t available right now (the free service allows about 5,000 characters a day).'; }
+  });
   dictEl.addEventListener('click', (e) => { const b = e.target.closest('#say'); if (b) new Audio(b.dataset.src).play().catch(() => toast('Couldn\'t play the recording.')); });
 
   // Research papers about the topic, most cited first.
@@ -383,7 +414,59 @@ async function search(q) {
   slot(freeEl, api.freeBooks(plainTitle), (r) => r.items.length && html`<ul class="list">${r.items.slice(0, 5).map((b) => raw(html`<li><a href="#/book/${b.id}">${b.title}</a><span class="meta">${b.authors.join(', ')}</span></li>`))}</ul>
     <a class="more" href="#/library/${encodeURIComponent(plainTitle)}">More free books →</a>`);
 
-  slot(newsEl, api.gdeltNews(`"${title.replace(/\s*\(.*\)$/, '')}"`), newsList);
+  let newsItems = [];
+  slot(newsEl, api.gdeltNews(`"${plainTitle}"`, 6), (items) => {
+    newsItems = items;
+    if (!items.length) return '';
+    setTimeout(() => wireSummaries(newsEl, newsItems));
+    return `${newsItemsHTML(items)}<a class="more" href="#/live/news/${encodeURIComponent(plainTitle)}">All coverage and trend →</a>`;
+  });
+  slot(redditEl, api.reddit(plainTitle), forumList);
+  slot(lemmyEl, api.lemmy(plainTitle), forumList);
+  elseEl.innerHTML = elsewhereHTML(plainTitle);
+
+  // The same topic in other languages (Wikipedia's interlanguage links). Supported languages switch the app.
+  const supported = new Set([...langSel.options].map((o) => o.value));
+  slot(langsEl, api.langLinks(title), (ls) => {
+    if (!ls.length) return '';
+    const mine = ls.filter((l) => supported.has(l.lang));
+    const others = ls.filter((l) => !supported.has(l.lang));
+    return html`<div class="lang-chips">${mine.map((l) => raw(html`<button type="button" class="ghost small" data-lang="${l.lang}" data-title="${l.title}" title="${l.name}"><b>${l.lang.toUpperCase()}</b> ${l.title}</button>`))}</div>
+      ${others.length ? raw(html`<details><summary class="meta">${others.length} more languages</summary><p class="meta">${raw(others.map((l) => html`<a href="https://${l.lang}.wikipedia.org/wiki/${encodeURIComponent(l.title.replace(/ /g, '_'))}" target="_blank" rel="noopener" title="${l.name}">${l.title}</a> (${l.lang})`).join(' · '))}</p></details>`) : ''}
+      <p class="meta">Tap a language to read about ${title} in it.</p>`;
+  });
+  langsEl.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-lang]');
+    if (!b) return;
+    langSel.value = b.dataset.lang; api.setLang(b.dataset.lang);
+    try { localStorage.setItem('rexx-lang', b.dataset.lang); } catch { /* ignore */ }
+    location.hash = `#/q/${encodeURIComponent(b.dataset.title)}`;
+  });
+
+  // Companies: live share price (free Finnhub key). Cryptocurrencies: price and 7-day trend. Teams: results.
+  const drawStock = () => slot(stockEl, entityP.then(async (e) => {
+    if (!e?.tickers?.length) return null;
+    if (!api.finnhubKey()) return { needsKey: true };
+    const us = e.tickers.find((t) => ['Q82059', 'Q13677'].includes(t.exchange)) || e.tickers[0];
+    let q = await api.stockQuote(us.symbol).catch(() => null);
+    if (!q) {
+      const hits = await api.stockSearch(e.label || plainTitle).catch(() => []);
+      if (hits[0]) q = await api.stockQuote(hits[0].symbol).catch(() => null);
+    }
+    return q;
+  }), (q) => {
+    if (!q) return '';
+    if (q.needsKey) return finnhubKeyForm(drawStock);
+    return stockCardHTML(q);
+  });
+  drawStock();
+  slot(coinEl, entityP.then((e) => (e && (e.instances?.includes('Q13479982') || /crypto ?currency/i.test(s.description || '')) ? api.cryptoByName(e.label || plainTitle) : null)), (c) => c && html`
+    <div class="quote"><div class="quote-head">${c.image ? raw(html`<img src="${c.image}" alt="">`) : ''}<div><b>${c.name}</b><span class="meta">${c.symbol}</span></div></div>
+    <p class="big-price">${c.price != null ? `$${c.price.toLocaleString('en', { maximumFractionDigits: c.price >= 1 ? 2 : 6 })}` : '–'} ${raw(c.change24 != null ? `<span class="chg ${c.change24 >= 0 ? 'up' : 'down'}">${c.change24 >= 0 ? '▲ +' : '▼ −'}${Math.abs(c.change24).toFixed(2)}%</span>` : '')}</p>
+    ${raw(sparkline(c.spark.filter((_, k) => k % 4 === 0), { w: 260, h: 56, label: `${c.name} price over 7 days, USD` }))}
+    <p class="meta">Last 7 days, US dollars · CoinGecko · market value ${compact(c.cap)}</p></div>`);
+  const TEAM_TYPES = ['Q476028', 'Q6979593', 'Q13393265', 'Q17156793', 'Q13027888', 'Q4498974', 'Q12973014', 'Q847017', 'Q1194951', 'Q2367225', 'Q20639856'];
+  slot(teamEl, entityP.then((e) => (e && (e.instances?.some((i) => TEAM_TYPES.includes(i)) || /\b(football|soccer|cricket|basketball|baseball|hockey|rugby) (club|team)\b|national .*team|\bF\.?C\.?\b/i.test(s.description || '')) ? api.team(e.label || plainTitle) : null)), (t) => t && teamHTML(t));
   slot(bskyEl, api.blueskySearch(title.replace(/\s*\(.*\)$/, '')), postList);
   slot(mastoEl, api.mastodonTag(title.replace(/\s*\(.*\)$/, '')), (p) => {
     mastoEl.closest('.card').querySelector('h3').textContent = `🐘 Mastodon #${title.replace(/\s*\(.*\)$/, '').replace(/[^\p{L}\p{N}_]/gu, '')}`;
@@ -443,7 +526,7 @@ function textToHTML(text) {
 async function reader(id) {
   const a = await vault.get(id).catch(() => null);
   if (!a) { view.innerHTML = '<section class="empty"><h2>Not in your Vault.</h2></section>'; return; }
-  if (a.kind === 'book') { location.replace(`#/book/${a.id.slice(5)}`); return; }
+  if (a.kind === 'book') { location.replace(a.id.startsWith('scan:') ? `#/scan/${encodeURIComponent(a.id.slice(5))}` : `#/book/${a.id.slice(5)}`); return; }
   if (a.kind === 'paper') {
     document.title = `${a.title} — rexx.space`;
     view.innerHTML = html`<article class="reader">
@@ -474,15 +557,33 @@ async function reader(id) {
 
 /* ───────────── Pulse ───────────── */
 
-function pulse() {
-  view.innerHTML = html`<div class="grid">
+/* ───────────── Live ───────────── */
+
+function live(arg = '') {
+  const [sub = 'news', ...rest] = arg.split('/');
+  const more = rest.join('/');
+  if (sub === 'markets') return marketsView(view, more);
+  if (sub === 'sports') return sportsView(view, more);
+  if (sub === 'social' || sub === 'planet') {
+    view.innerHTML = `${liveNav(sub)}<div id="live-body"></div>`;
+    return sub === 'social' ? pulse($('#live-body')) : planet($('#live-body'));
+  }
+  return newsView(view, more);
+}
+
+function pulse(el = view) {
+  el.innerHTML = html`<div class="grid">
     ${raw(card('🔥 Most-read on Wikipedia today', null))}
     ${raw(card('💬 Hacker News', null, { optional: true }))}
     ${raw(card('🐘 Trending on Mastodon', null, { optional: true }))}
     ${raw(card('🔗 Links people are sharing', null, { optional: true }))}
     ${raw(card('🦋 Bluesky: what\'s buzzing', null, { optional: true, wide: true }))}
+    ${raw(card('👽 Popular on Reddit', null, { optional: true }))}
+    ${raw(card('🗨️ Hot on Lemmy', null, { optional: true }))}
   </div>`;
-  const [wr, hn, mt, ml, bs] = $$('.card .body', view);
+  const [wr, hn, mt, ml, bs, rd, lm] = $$('.card .body', el);
+  slot(rd, api.reddit(''), forumList);
+  slot(lm, api.lemmy(''), forumList);
   slot(wr, api.wikiFeed(), (f) => mostReadList(f.mostread?.articles, 15));
   slot(hn, api.hackerNews(), hnList);
   const trends = api.mastodonTrends();
@@ -499,20 +600,20 @@ function pulse() {
 
 /* ───────────── Planet ───────────── */
 
-function planet() {
+function planet(el = view) {
   if (api.DEMO) {
-    view.innerHTML = html`<div class="grid">${raw(card('🌋 Live planet', raw('<p class="muted live-note">The live map of this week\'s earthquakes and the space station\'s position needs an internet connection, so it isn\'t part of this demo. Run the full app to see it.</p>'), { wide: true }))}</div>`;
+    el.innerHTML = html`<div class="grid">${raw(card('🌋 Live planet', raw('<p class="muted live-note">The live map of this week\'s earthquakes and the space station\'s position needs an internet connection, so it isn\'t part of this demo. Run the full app to see it.</p>'), { wide: true }))}</div>`;
     return;
   }
   // Zoom-1 OSM tiles stitched into a 512px world (Web Mercator), styled dark. Cached by the SW for offline.
   const tiles = [0, 1].flatMap((y) => [0, 1].map((x) => `<img src="https://tile.openstreetmap.org/1/${x}/${y}.png" alt="" style="left:${x * 50}%;top:${y * 50}%">`)).join('');
-  view.innerHTML = html`<section class="planet">
+  el.innerHTML = html`<section class="planet">
     <div class="worldmap" id="world">${raw(tiles)}<div id="pins"></div></div>
     <div class="legend"><span><i class="dot quake"></i> Earthquake ≥ M4.5 (past 7 days, size = magnitude)</span><span><i class="dot iss"></i> International Space Station (live)</span></div>
   </section>
   <div class="grid">${raw(card('🛰️ ISS right now', null, { optional: true }))}${raw(card('🌋 Strongest quakes this week', null, { wide: true }))}</div>`;
   const pins = $('#pins');
-  const [issEl, listEl] = $$('.card .body', view);
+  const [issEl, listEl] = $$('.card .body', el);
 
   api.earthquakes().then((qs) => {
     pins.insertAdjacentHTML('beforeend', qs.map((q) => {

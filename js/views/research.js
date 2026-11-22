@@ -15,6 +15,8 @@ export function paperHTML(p, i) {
       ${p.oa ? raw('<span class="chip ok-chip">Free to read</span>') : ''}
       ${p.pdf ? raw(html`<a class="chip" href="${p.pdf}" target="_blank" rel="noopener">PDF ↗</a>`) : ''}
       ${p.doi ? raw(html`<span class="chip mono">doi:${p.doi}</span>`) : ''}
+      ${p.pmid ? raw(html`<a class="chip" href="https://pubmed.ncbi.nlm.nih.gov/${p.pmid}/" target="_blank" rel="noopener">PubMed ↗</a>`) : ''}
+      ${p.source && p.source !== 'OpenAlex' ? raw(html`<span class="chip">${p.source}</span>`) : ''}
     </span>
     ${p.abstract ? raw(html`<details><summary>Abstract</summary><p>${p.abstract}</p></details>`) : ''}
     <span class="paper-actions"><button type="button" class="ghost small" data-act="cite">Cite</button><button type="button" class="ghost small" data-act="save">Save</button></span>
@@ -41,79 +43,109 @@ export function wirePapers(root, items, onSaved = () => {}) {
   });
 }
 
-let state = { sort: 'relevance', oa: false, bio: false };
+const SOURCES = {
+  all: { label: 'All fields (OpenAlex)', note: 'About 250 million works: journals, conferences, books, theses and preprints.' },
+  arxiv: { label: 'arXiv preprints', note: 'Physics, mathematics, computer science, biology, economics and more, often before peer review.' },
+  pubmed: { label: 'PubMed (medicine)', note: 'More than 37 million biomedical and life-science citations, via Europe PMC.' },
+  crossref: { label: 'Crossref (all DOIs)', note: 'The registry behind DOIs: about 170 million records straight from publishers.' },
+};
+
+let state = { sort: 'relevance', oa: false, src: 'all' };
 try { state = { ...state, ...JSON.parse(localStorage.getItem('rexx-research') || '{}') }; } catch { /* ignore */ }
+if (!SOURCES[state.src]) state.src = 'all';
+
+/** Search the chosen source. Returns { total, items, note } where note explains any fallback. */
+async function searchSource(q, page, per) {
+  const { sort, oa, src } = state;
+  if (src === 'arxiv') {
+    try { return await api.arxiv(q, { per, start: (page - 1) * per, sort }); } catch {
+      // arXiv may refuse browser requests; OpenAlex indexes arXiv too, so fall back to its preprints.
+      const r = await api.papers(q, { sort, oa, preprints: true, per, page });
+      return { ...r, note: 'arXiv didn\'t respond, so these are preprints (including arXiv\'s) from OpenAlex.' };
+    }
+  }
+  if (src === 'pubmed') {
+    const items = await api.biomed(q, per * page, { pubmedOnly: true, sort });
+    return { total: items.length, items: items.slice((page - 1) * per), more: items.length === per * page };
+  }
+  if (src === 'crossref') return api.crossref(q, { per, page, sort });
+  return api.papers(q, { sort, oa, per, page });
+}
 
 export function researchView(view, arg, { refreshVaultCount }) {
   const q = decodeURIComponent(arg || '');
   view.innerHTML = html`<section class="section-head">
       <h2>Research</h2>
-      <p class="muted">Search about 250 million scholarly works from OpenAlex (journals, conference papers, books and arXiv preprints), plus biomedical literature from Europe PMC.</p>
+      <p class="muted">Search scholarly papers across every field, or paste a DOI to look one up. Every result can be cited or saved for offline reading.</p>
     </section>
     <form class="tool-form" id="rform" role="search">
       <label class="sr-only" for="rq">Search papers</label>
-      <input id="rq" type="search" placeholder="Topic, title, author or DOI, e.g. CRISPR gene editing" value="${q}" autocomplete="off">
+      <input id="rq" type="search" placeholder="Topic, title, author or DOI, e.g. CRISPR gene editing or 10.1038/nature14539" value="${q}" autocomplete="off">
+      <select id="rsrc" aria-label="Source">${Object.entries(SOURCES).map(([k, v]) => raw(html`<option value="${k}">${v.label}</option>`))}</select>
       <select id="rsort" aria-label="Sort by">
         <option value="relevance">Most relevant</option><option value="cited">Most cited</option><option value="newest">Newest</option>
       </select>
       <label class="check"><input type="checkbox" id="roa"> Free to read only</label>
-      <label class="check"><input type="checkbox" id="rbio"> Include biomedicine (Europe PMC)</label>
       <button type="submit">Search papers</button>
     </form>
+    <p class="meta" id="rnote"></p>
     <div id="rresults"></div>`;
 
-  const form = $('#rform'), sort = $('#rsort'), oa = $('#roa'), bio = $('#rbio'), out = $('#rresults');
-  sort.value = state.sort; oa.checked = state.oa; bio.checked = state.bio;
+  const form = $('#rform'), src = $('#rsrc'), sort = $('#rsort'), oa = $('#roa'), out = $('#rresults');
+  src.value = state.src; sort.value = state.sort; oa.checked = state.oa;
+  const note = () => { $('#rnote').textContent = SOURCES[src.value].note; oa.closest('label').hidden = !['all', 'arxiv'].includes(src.value); };
+  note();
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    state = { sort: sort.value, oa: oa.checked, bio: bio.checked };
+    state = { sort: sort.value, oa: oa.checked, src: src.value };
     try { localStorage.setItem('rexx-research', JSON.stringify(state)); } catch { /* ignore */ }
     const v = $('#rq').value.trim();
-    if (v) location.hash = `#/research/${encodeURIComponent(v)}`;
+    if (v) { if (location.hash === `#/research/${encodeURIComponent(v)}`) researchView(view, encodeURIComponent(v), { refreshVaultCount }); else location.hash = `#/research/${encodeURIComponent(v)}`; }
   });
-  [sort, oa, bio].forEach((el) => el.addEventListener('change', () => form.requestSubmit()));
+  src.addEventListener('change', () => { note(); if (q) form.requestSubmit(); });
+  [sort, oa].forEach((el) => el.addEventListener('change', () => { if (q) form.requestSubmit(); }));
 
   if (!q) {
     out.innerHTML = html`<div class="grid">${raw(card('💡 Try', raw(html`<div class="tags">${['climate change adaptation', 'transformer neural network', 'CRISPR', 'black hole imaging', 'microplastics health', 'Indus Valley script', 'mRNA vaccine', 'quantum error correction'].map((t) => raw(html`<a href="#/research/${encodeURIComponent(t)}">${t}</a>`))}</div>`), { wide: true }))}</div>`;
     return;
   }
 
-  out.innerHTML = html`<div class="grid">
-    ${raw(card(`📄 Papers on “${esc(q)}”`, null, { wide: true, cls: 'papers-card' }))}
-    ${state.bio ? raw(card('🧬 Biomedical literature (Europe PMC)', null, { wide: true, cls: 'papers-card' })) : ''}
-  </div>`;
-  const [mainEl, bioEl] = view.querySelectorAll('.papers-card .body');
+  // A DOI goes straight to that one paper.
+  const doi = api.asDOI(q);
+  if (doi) {
+    out.innerHTML = html`<div class="grid">${raw(card(`📄 ${esc(doi)}`, null, { wide: true, cls: 'papers-card' }))}</div>`;
+    const el = $('.papers-card .body', view);
+    slot(el, api.byDOI(doi), (p) => {
+      setTimeout(() => wirePapers(el, [p], refreshVaultCount));
+      return html`<ol class="list papers">${raw(paperHTML(p, 0))}</ol>`;
+    });
+    return;
+  }
+
+  out.innerHTML = html`<div class="grid">${raw(card(`📄 ${esc(SOURCES[state.src].label)}: “${esc(q)}”`, null, { wide: true, cls: 'papers-card' }))}</div>`;
+  const mainEl = $('.papers-card .body', view);
+  const per = 15;
   let page = 1;
   let items = [];
-  const load = () => api.papers(q, { sort: state.sort, oa: state.oa, per: 15, page });
-  slot(mainEl, load(), (r) => {
+  slot(mainEl, searchSource(q, page, per), (r) => {
     items = r.items;
-    if (!items.length) return html`<p class="muted">No papers matched. Try broader words, or turn off “Free to read only”.</p>`;
-    const more = r.total > items.length;
+    if (!items.length) return html`<p class="muted">No papers matched. Try broader words, another source, or turn off “Free to read only”.</p>`;
+    const more = r.more ?? r.total > items.length;
     setTimeout(() => {
       wirePapers(mainEl, items, refreshVaultCount);
       $('#rmore')?.addEventListener('click', async (e) => {
         const btn = e.currentTarget; btn.disabled = true; btn.textContent = 'Loading…';
         page++;
         try {
-          const next = await load();
+          const next = await searchSource(q, page, per);
           const start = items.length;
           items.push(...next.items);
           mainEl.querySelector('ol').insertAdjacentHTML('beforeend', next.items.map((p, k) => paperHTML(p, start + k)).join(''));
-          if (items.length >= r.total || !next.items.length) btn.remove(); else { btn.disabled = false; btn.textContent = 'Load more'; }
+          if (!(next.more ?? next.total > items.length) || !next.items.length) btn.remove(); else { btn.disabled = false; btn.textContent = 'Load more'; }
         } catch { btn.disabled = false; btn.textContent = 'Load more'; toast('Couldn\'t load more papers.'); }
       });
     });
-    return html`<p class="meta">${compact(r.total)} results</p><ol class="list papers">${items.map((p, i) => raw(paperHTML(p, i)))}</ol>
+    return html`${r.note ? raw(html`<p class="meta">${r.note}</p>`) : ''}<p class="meta">${r.total ? `${compact(r.total)} results` : ''}</p><ol class="list papers">${items.map((p, i) => raw(paperHTML(p, i)))}</ol>
       ${more ? raw('<button type="button" class="ghost" id="rmore">Load more</button>') : ''}`;
   });
-  if (bioEl) {
-    let bioItems = [];
-    slot(bioEl, api.biomed(q, 10), (r) => {
-      bioItems = r;
-      if (!r.length) return html`<p class="muted">No biomedical papers matched.</p>`;
-      setTimeout(() => wirePapers(bioEl, bioItems, refreshVaultCount));
-      return html`<ol class="list papers">${r.map((p, i) => raw(paperHTML(p, i)))}</ol>`;
-    });
-  }
 }

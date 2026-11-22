@@ -242,3 +242,31 @@ export const nearby = live;
 export const airQuality = live;
 export const exchangeRate = live;
 export const onThisDay = live;
+
+/* Sources added in v3: also live-only. asDOI is pure, so it works in the demo too. */
+export function asDOI(text) {
+  const m = /^(?:https?:\/\/(?:dx\.)?doi\.org\/|doi:\s*)?(10\.\d{4,9}\/\S+)$/i.exec(text.trim());
+  return m ? m[1] : null;
+}
+export const byDOI = live;
+export const arxiv = live;
+export const crossref = live;
+export const langLinks = live;
+export const translate = live;
+export const archiveBooks = live;
+export const archiveItem = live;
+export const archiveText = live;
+export const reddit = live;
+export const lemmy = live;
+export const newsTimeline = live;
+export const crypto = live;
+export const cryptoByName = live;
+export const fxLatest = live;
+export const fxSeries = live;
+export const finnhubKey = () => '';
+export const setFinnhubKey = () => {};
+export const stockQuote = live;
+export const stockSearch = live;
+export const LEAGUES = [{ id: 'soccer/eng.1', name: 'Premier League' }, { id: 'basketball/nba', name: 'NBA' }];
+export const scoreboard = live;
+export const team = live;

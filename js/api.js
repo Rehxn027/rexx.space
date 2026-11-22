@@ -120,6 +120,7 @@ function fmtTime(t) {
 
 export async function wikidataEntity(qid) {
   const u = `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${qid}&props=claims|labels|descriptions&languages=${LANG}|en&format=json&origin=*`;
+  // Note: claims include qualifiers, which carry stock ticker symbols.
   const d = await getJSON(u);
   const ent = d.entities?.[qid];
   if (!ent) return null;
@@ -152,6 +153,11 @@ export async function wikidataEntity(qid) {
   const instanceIds = (claims.P31 || []).map((c) => c.mainsnak?.datavalue?.value?.id).filter(Boolean);
   const type = instanceIds.map((id) => TYPES[id]).find(Boolean) || (coord ? 'place' : 'thing');
   const iso2 = claims.P297?.[0]?.mainsnak?.datavalue?.value;
+  // Stock listings: P414 (stock exchange) with a P249 (ticker symbol) qualifier.
+  const tickers = (claims.P414 || []).map((c) => ({
+    exchange: c.mainsnak?.datavalue?.value?.id,
+    symbol: c.qualifiers?.P249?.[0]?.datavalue?.value,
+  })).filter((t) => t.symbol);
 
   // Resolve item labels in one batch.
   if (needLabels.size) {
@@ -166,7 +172,8 @@ export async function wikidataEntity(qid) {
   for (const f of facts) f.vals = f.vals.map((v) => (v.qid ? v.qid : v));
 
   return {
-    qid, type, iso2, socials,
+    qid, type, iso2, socials, instances: instanceIds, tickers,
+    label: ent.labels?.en?.value || ent.labels?.[LANG]?.value || '',
     facts: facts.filter((f) => f.pid !== 'P31' || type === 'thing'),
     coord: coord ? { lat: coord.latitude, lon: coord.longitude } : null,
   };
@@ -216,11 +223,11 @@ export async function issPosition() {
 
 /* ───────────── News & events ───────────── */
 
-export async function gdeltNews(q, max = 8) {
-  const u = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(q)}&mode=artlist&format=json&sort=datedesc&maxrecords=${max}`;
-  const d = await getJSON(u, { timeout: 10000 });
+export async function gdeltNews(q, max = 8, { timespan = '', sort = 'datedesc' } = {}) {
+  const u = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(q)}&mode=artlist&format=json&sort=${sort}&maxrecords=${max}${timespan ? `&timespan=${timespan}` : ''}`;
+  const d = await getJSON(u, { timeout: 12000 });
   return (d.articles || []).map((a) => ({
-    title: a.title, url: a.url, source: a.domain, image: a.socialimage, country: a.sourcecountry,
+    title: a.title, url: a.url, source: a.domain, image: a.socialimage, country: a.sourcecountry, language: a.language,
     time: a.seendate ? Date.parse(a.seendate.replace(/(\d{4})(\d\d)(\d\d)T(\d\d)(\d\d)(\d\d)Z/, '$1-$2-$3T$4:$5:$6Z')) : null,
   }));
 }
@@ -306,40 +313,120 @@ function invertedToText(inv) {
  * Scholarly works from OpenAlex (about 250 million papers, books and datasets, including arXiv preprints).
  * sort: 'relevance' | 'cited' | 'newest'. oa: only works with a free full text.
  */
-export async function papers(q, { sort = 'relevance', oa = false, per = 10, page = 1 } = {}) {
+const OA_FIELDS = 'id,doi,display_name,publication_year,publication_date,cited_by_count,authorships,primary_location,open_access,best_oa_location,abstract_inverted_index,type';
+
+const oaWork = (w) => ({
+  kind: 'paper',
+  source: 'OpenAlex',
+  id: w.id?.split('/').pop(),
+  title: w.display_name || 'Untitled',
+  authors: (w.authorships || []).map((a) => a.author?.display_name).filter(Boolean),
+  year: w.publication_year,
+  date: w.publication_date,
+  venue: w.primary_location?.source?.display_name || '',
+  cited: w.cited_by_count,
+  doi: w.doi ? w.doi.replace('https://doi.org/', '') : '',
+  url: w.doi || w.primary_location?.landing_page_url || w.id,
+  oa: !!w.open_access?.is_oa,
+  pdf: w.best_oa_location?.pdf_url || w.open_access?.oa_url || '',
+  abstract: invertedToText(w.abstract_inverted_index),
+  type: w.type,
+});
+
+export async function papers(q, { sort = 'relevance', oa = false, preprints = false, per = 10, page = 1 } = {}) {
   const sorts = { relevance: '', cited: '&sort=cited_by_count:desc', newest: '&sort=publication_date:desc' };
-  const filter = oa ? '&filter=is_oa:true' : '';
-  const fields = 'id,doi,display_name,publication_year,publication_date,cited_by_count,authorships,primary_location,open_access,best_oa_location,abstract_inverted_index,type';
-  const u = `https://api.openalex.org/works?search=${encodeURIComponent(q)}&per-page=${per}&page=${page}${sorts[sort] || ''}${filter}&select=${fields}`;
+  const filters = [oa && 'is_oa:true', preprints && 'type:preprint'].filter(Boolean);
+  const filter = filters.length ? `&filter=${filters.join(',')}` : '';
+  const u = `https://api.openalex.org/works?search=${encodeURIComponent(q)}&per-page=${per}&page=${page}${sorts[sort] || ''}${filter}&select=${OA_FIELDS}`;
   const d = await getJSON(u);
+  return { total: d.meta?.count || 0, items: (d.results || []).map(oaWork) };
+}
+
+/** Is this text a DOI (bare, doi:…, or a doi.org link)? Returns the bare DOI or null. */
+export function asDOI(text) {
+  const m = /^(?:https?:\/\/(?:dx\.)?doi\.org\/|doi:\s*)?(10\.\d{4,9}\/\S+)$/i.exec(text.trim());
+  return m ? m[1] : null;
+}
+
+/** Look up one work by DOI: OpenAlex first (it knows about free copies), then Crossref. */
+export async function byDOI(doi) {
+  try {
+    return oaWork(await getJSON(`https://api.openalex.org/works/doi:${encodeURIComponent(doi)}?select=${OA_FIELDS}`));
+  } catch {
+    const d = await getJSON(`https://api.crossref.org/works/${encodeURIComponent(doi)}`);
+    return crossrefWork(d.message);
+  }
+}
+
+/* arXiv preprints. arXiv's API returns Atom XML. */
+export async function arxiv(q, { per = 15, start = 0, sort = 'relevance' } = {}) {
+  const by = { relevance: 'relevance', newest: 'submittedDate', cited: 'relevance' }[sort] || 'relevance';
+  const u = `https://export.arxiv.org/api/query?search_query=all:${encodeURIComponent(q)}&start=${start}&max_results=${per}&sortBy=${by}&sortOrder=descending`;
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 12000);
+  let xml;
+  try {
+    const res = await fetch(u, { signal: ctrl.signal });
+    if (!res.ok) throw new Error(`${res.status} arXiv`);
+    xml = new DOMParser().parseFromString(await res.text(), 'application/xml');
+  } finally { clearTimeout(t); }
+  const txt = (el, sel) => el.getElementsByTagName(sel)[0]?.textContent?.replace(/\s+/g, ' ').trim() || '';
+  const total = Number(xml.getElementsByTagName('opensearch:totalResults')[0]?.textContent) || 0;
+  const items = [...xml.getElementsByTagName('entry')].map((e) => {
+    const absUrl = txt(e, 'id');
+    const id = absUrl.split('/abs/').pop();
+    const doi = txt(e, 'arxiv:doi');
+    const pdf = [...e.getElementsByTagName('link')].find((l) => l.getAttribute('title') === 'pdf')?.getAttribute('href') || `https://arxiv.org/pdf/${id}`;
+    const date = txt(e, 'published').slice(0, 10);
+    return {
+      kind: 'paper', source: 'arXiv', id: `arxiv:${id}`,
+      title: txt(e, 'title'),
+      authors: [...e.getElementsByTagName('author')].map((a) => txt(a, 'name')),
+      year: Number(date.slice(0, 4)) || null, date,
+      venue: `arXiv preprint (${e.getElementsByTagName('arxiv:primary_category')[0]?.getAttribute('term') || 'arXiv'})`,
+      cited: null, doi, url: absUrl.replace('http://', 'https://'), oa: true, pdf: pdf.replace('http://', 'https://'),
+      abstract: txt(e, 'summary'),
+    };
+  });
+  return { total, items };
+}
+
+/* Crossref: the registry behind DOIs, about 170 million records with publisher metadata. */
+function crossrefWork(w) {
+  const date = w.issued?.['date-parts']?.[0] || w.published?.['date-parts']?.[0] || [];
   return {
-    total: d.meta?.count || 0,
-    items: (d.results || []).map((w) => ({
-      kind: 'paper',
-      id: w.id?.split('/').pop(),
-      title: w.display_name || 'Untitled',
-      authors: (w.authorships || []).map((a) => a.author?.display_name).filter(Boolean),
-      year: w.publication_year,
-      date: w.publication_date,
-      venue: w.primary_location?.source?.display_name || '',
-      cited: w.cited_by_count,
-      doi: w.doi ? w.doi.replace('https://doi.org/', '') : '',
-      url: w.doi || w.primary_location?.landing_page_url || w.id,
-      oa: !!w.open_access?.is_oa,
-      pdf: w.best_oa_location?.pdf_url || w.open_access?.oa_url || '',
-      abstract: invertedToText(w.abstract_inverted_index),
-      type: w.type,
-    })),
+    kind: 'paper', source: 'Crossref', id: w.DOI,
+    title: (w.title || ['Untitled'])[0],
+    authors: (w.author || []).map((a) => [a.given, a.family].filter(Boolean).join(' ') || a.name).filter(Boolean),
+    year: date[0] || null,
+    date: date.length === 3 ? `${date[0]}-${String(date[1]).padStart(2, '0')}-${String(date[2]).padStart(2, '0')}` : null,
+    venue: (w['container-title'] || [])[0] || w.publisher || '',
+    cited: w['is-referenced-by-count'],
+    doi: w.DOI, url: `https://doi.org/${w.DOI}`,
+    oa: false, pdf: '',
+    abstract: (w.abstract || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').replace(/^Abstract\s*/i, '').trim(),
   };
 }
 
+export async function crossref(q, { per = 15, page = 1, sort = 'relevance' } = {}) {
+  const s = { relevance: 'relevance', cited: 'is-referenced-by-count', newest: 'published' }[sort] || 'relevance';
+  const sel = 'DOI,title,author,container-title,issued,published,is-referenced-by-count,abstract,publisher,type';
+  const u = `https://api.crossref.org/works?query=${encodeURIComponent(q)}&rows=${per}&offset=${(page - 1) * per}&sort=${s}&order=desc&select=${sel}`;
+  const d = await getJSON(u, { timeout: 15000 });
+  return { total: d.message?.['total-results'] || 0, items: (d.message?.items || []).map(crossrefWork) };
+}
+
 /** Biomedical and life-science literature from Europe PMC (includes PubMed). */
-export async function biomed(q, per = 6) {
-  const u = `https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=${encodeURIComponent(q)}&format=json&pageSize=${per}&resultType=core&sort=CITED%20desc`;
+export async function biomed(q, per = 6, { pubmedOnly = false, sort = 'cited' } = {}) {
+  const query = pubmedOnly ? `(${q}) AND SRC:MED` : q;
+  const order = { cited: '&sort=CITED%20desc', newest: '&sort=P_PDATE_D%20desc', relevance: '' }[sort] ?? '';
+  const u = `https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=${encodeURIComponent(query)}&format=json&pageSize=${per}&resultType=core${order}`;
   const d = await getJSON(u);
   return (d.resultList?.result || []).map((r) => ({
     kind: 'paper',
+    source: r.source === 'MED' ? 'PubMed' : 'Europe PMC',
     id: r.id,
+    pmid: r.pmid || (r.source === 'MED' ? r.id : ''),
     title: (r.title || '').replace(/<[^>]+>/g, '').replace(/\.$/, ''),
     authors: (r.authorString || '').replace(/\.$/, '').split(', ').filter(Boolean),
     year: Number(r.pubYear) || null,
@@ -505,4 +592,217 @@ export async function exchangeRate(code) {
 export async function onThisDay(mm, dd) {
   const l = ['en', 'de', 'fr', 'sv', 'pt', 'ru', 'es', 'ar', 'bs', 'uk', 'it', 'tr', 'zh'].includes(LANG) ? LANG : 'en';
   return getJSON(`https://api.wikimedia.org/feed/v1/wikipedia/${l}/onthisday/all/${pad(mm)}/${pad(dd)}`);
+}
+
+/* ───────────── Translations ───────────── */
+
+/** The same topic's article title in other Wikipedia languages: a free, reliable "translation" of names and terms. */
+export async function langLinks(title) {
+  const d = await getJSON(`${wiki()}/w/api.php?action=query&prop=langlinks&titles=${encodeURIComponent(title)}&lllimit=500&llprop=autonym|langname&redirects=1&format=json&origin=*`);
+  const page = Object.values(d.query?.pages || {})[0];
+  return (page?.langlinks || []).map((l) => ({ lang: l.lang, title: l['*'] ?? l.title, name: l.autonym || l.langname || l.lang }));
+}
+
+/** Machine translation of a short text (MyMemory; free without a key, about 5,000 characters a day per user). */
+export async function translate(text, from, to) {
+  const d = await getJSON(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text.slice(0, 450))}&langpair=${encodeURIComponent(from)}|${encodeURIComponent(to)}`, { timeout: 9000 });
+  if (d.responseStatus && Number(d.responseStatus) !== 200) throw new Error(d.responseDetails || 'Translation failed');
+  const alts = [...new Set((d.matches || []).map((m) => m.translation).filter(Boolean))].filter((t) => t !== d.responseData?.translatedText).slice(0, 3);
+  return { text: d.responseData?.translatedText || '', alternatives: alts };
+}
+
+/* ───────────── Internet Archive books ───────────── */
+
+/**
+ * Public-domain scanned books on the Internet Archive, found through Open Library's catalogue.
+ * Only works whose scan is free to read by anyone (ebook_access "public") are kept.
+ */
+export async function archiveBooks(q = '', page = 1) {
+  const query = q || 'subject:"Accessible book"';
+  const u = `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&page=${page}&limit=60&fields=key,title,author_name,first_publish_year,cover_i,ia,ebook_access,public_scan_b,language`;
+  const d = await getJSON(u, { timeout: 15000 });
+  const items = (d.docs || [])
+    .filter((b) => (b.ebook_access === 'public' || b.public_scan_b) && b.ia?.length)
+    .slice(0, 24)
+    .map((b) => ({
+      kind: 'book', source: 'Internet Archive',
+      id: b.ia[0], title: b.title, authors: b.author_name || [], year: b.first_publish_year,
+      cover: b.cover_i ? `https://covers.openlibrary.org/b/id/${b.cover_i}-M.jpg` : `https://archive.org/services/img/${b.ia[0]}`,
+      url: `https://archive.org/details/${b.ia[0]}`, openLibrary: `https://openlibrary.org${b.key}`,
+    }));
+  return { total: d.numFound || 0, next: (d.docs || []).length === 60, items };
+}
+
+/** Metadata for one Internet Archive item. */
+export async function archiveItem(id) {
+  const d = await getJSON(`https://archive.org/metadata/${encodeURIComponent(id)}`);
+  const m = d.metadata || {};
+  const list = (v) => (Array.isArray(v) ? v : v ? [v] : []);
+  const txt = (d.files || []).find((f) => /_djvu\.txt$/.test(f.name));
+  return {
+    kind: 'book', source: 'Internet Archive', id,
+    title: list(m.title)[0] || id, authors: list(m.creator), year: Number(String(m.date || m.year || '').slice(0, 4)) || null,
+    publisher: list(m.publisher)[0] || '', subjects: list(m.subject).slice(0, 5), languages: list(m.language),
+    description: String(list(m.description)[0] || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 600),
+    cover: `https://archive.org/services/img/${id}`, url: `https://archive.org/details/${id}`,
+    text: txt ? `https://archive.org/download/${id}/${encodeURIComponent(txt.name)}` : '',
+  };
+}
+
+/** The OCR'd plain text of a scanned book, if the archive provides one. */
+export async function archiveText(item) {
+  if (!item.text) throw new Error('No text version');
+  const res = await fetch(item.text);
+  if (!res.ok) throw new Error(`${res.status}`);
+  return (await res.text()).trim();
+}
+
+/* ───────────── More social sources ───────────── */
+
+/** Reddit discussions. Reddit limits anonymous access, so this may stop working at any time; the card hides if so. */
+export async function reddit(q) {
+  const u = q ? `https://www.reddit.com/search.json?q=${encodeURIComponent(q)}&sort=relevance&t=year&limit=8&raw_json=1` : 'https://www.reddit.com/r/popular.json?limit=10&raw_json=1';
+  const d = await getJSON(u, { timeout: 8000 });
+  return (d.data?.children || []).map((c) => c.data).filter((p) => !p.over_18).map((p) => ({
+    title: p.title, community: p.subreddit_name_prefixed, score: p.score, comments: p.num_comments,
+    url: `https://www.reddit.com${p.permalink}`, time: p.created_utc * 1000,
+  }));
+}
+
+/** Lemmy: an open, federated Reddit-like network with a public API. */
+export async function lemmy(q) {
+  const u = q
+    ? `https://lemmy.world/api/v3/search?q=${encodeURIComponent(q)}&type_=Posts&sort=TopAll&listing_type=All&limit=8`
+    : 'https://lemmy.world/api/v3/post/list?type_=All&sort=Hot&limit=10';
+  const d = await getJSON(u, { timeout: 8000 });
+  return (d.posts || []).filter((x) => !x.post?.nsfw).map((x) => ({
+    title: x.post.name, community: `!${x.community?.name}`, score: x.counts?.score, comments: x.counts?.comments,
+    url: x.post.ap_id, time: Date.parse(x.post.published),
+  }));
+}
+
+/* ───────────── News in depth ───────────── */
+
+/** How much of the world's news mentions a topic, day by day (share of all coverage GDELT monitors). */
+export async function newsTimeline(q, timespan = '3months') {
+  const d = await getJSON(`https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(q)}&mode=timelinevol&format=json&timespan=${timespan}`, { timeout: 12000 });
+  return (d.timeline?.[0]?.data || []).map((p) => ({
+    t: Date.parse(p.date.replace(/(\d{4})(\d\d)(\d\d)T(\d\d)(\d\d)(\d\d)Z/, '$1-$2-$3T$4:$5:$6Z')), v: Number(p.value),
+  }));
+}
+
+/* ───────────── Markets ───────────── */
+
+/** Top cryptocurrencies with 7-day price history (CoinGecko; falls back to CoinPaprika without history). */
+export async function crypto(per = 20) {
+  try {
+    const d = await getJSON(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=${per}&page=1&sparkline=true&price_change_percentage=24h,7d`, { timeout: 9000 });
+    return d.map((c) => ({ id: c.id, symbol: c.symbol.toUpperCase(), name: c.name, image: c.image, price: c.current_price, cap: c.market_cap, change24: c.price_change_percentage_24h, change7: c.price_change_percentage_7d_in_currency, spark: c.sparkline_in_7d?.price || [], source: 'CoinGecko' }));
+  } catch {
+    const d = await getJSON(`https://api.coinpaprika.com/v1/tickers?limit=${per}`, { timeout: 9000 });
+    return d.map((c) => ({ id: c.id, symbol: c.symbol, name: c.name, image: '', price: c.quotes?.USD?.price, cap: c.quotes?.USD?.market_cap, change24: c.quotes?.USD?.percent_change_24h, change7: c.quotes?.USD?.percent_change_7d, spark: [], source: 'CoinPaprika' }));
+  }
+}
+
+/** Find a cryptocurrency by name and return its current market data. */
+export async function cryptoByName(name) {
+  const s = await getJSON(`https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(name)}`, { timeout: 8000 });
+  const hit = (s.coins || []).find((c) => c.name.toLowerCase() === name.toLowerCase()) || s.coins?.[0];
+  if (!hit) return null;
+  const d = await getJSON(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${hit.id}&sparkline=true&price_change_percentage=24h,7d`, { timeout: 8000 });
+  const c = d[0];
+  return c && { id: c.id, symbol: c.symbol.toUpperCase(), name: c.name, image: c.image, price: c.current_price, cap: c.market_cap, change24: c.price_change_percentage_24h, change7: c.price_change_percentage_7d_in_currency, spark: c.sparkline_in_7d?.price || [] };
+}
+
+const FX_HOSTS = ['https://api.frankfurter.app', 'https://api.frankfurter.dev/v1'];
+async function frankfurter(path) {
+  let err;
+  for (const h of FX_HOSTS) {
+    try { return await getJSON(`${h}${path}`, { timeout: 8000 }); } catch (e) { err = e; }
+  }
+  throw err;
+}
+
+/** Latest reference rates from a base currency to a list of others. */
+export async function fxLatest(base = 'USD', to = []) {
+  const d = await frankfurter(`/latest?from=${base}${to.length ? `&to=${to.join(',')}` : ''}`);
+  return { date: d.date, base: d.base, rates: d.rates };
+}
+
+/** Daily rates of one currency pair between two dates. */
+export async function fxSeries(base, to, days = 90) {
+  const start = new Date(Date.now() - days * 864e5).toISOString().slice(0, 10);
+  const d = await frankfurter(`/${start}..?from=${base}&to=${to}`);
+  return Object.entries(d.rates || {}).map(([date, r]) => ({ t: Date.parse(date), v: r[to] })).filter((p) => p.v != null);
+}
+
+/* Stocks need a free Finnhub key (finnhub.io), which the user adds; it stays in their browser. */
+const FINNHUB_KEY = 'rexx-finnhub-key';
+export const finnhubKey = () => { try { return localStorage.getItem(FINNHUB_KEY) || ''; } catch { return ''; } };
+export const setFinnhubKey = (k) => { try { if (k) localStorage.setItem(FINNHUB_KEY, k.trim()); else localStorage.removeItem(FINNHUB_KEY); } catch { /* storage blocked */ } };
+
+async function finnhub(path) {
+  const key = finnhubKey();
+  if (!key) { const e = new Error('No Finnhub key'); e.name = 'NeedsKey'; throw e; }
+  return getJSON(`https://finnhub.io/api/v1${path}${path.includes('?') ? '&' : '?'}token=${encodeURIComponent(key)}`, { timeout: 8000 });
+}
+
+/** Current price for a stock symbol, with the company's name and currency. */
+export async function stockQuote(symbol) {
+  const [q, p] = await Promise.all([finnhub(`/quote?symbol=${encodeURIComponent(symbol)}`), finnhub(`/stock/profile2?symbol=${encodeURIComponent(symbol)}`).catch(() => ({}))]);
+  if (!q || (!q.c && !q.pc)) return null;
+  return { symbol, name: p.name || symbol, currency: p.currency || 'USD', exchange: p.exchange || '', logo: p.logo || '', price: q.c, change: q.d, changePct: q.dp, high: q.h, low: q.l, open: q.o, prevClose: q.pc, time: q.t * 1000 };
+}
+
+export async function stockSearch(q) {
+  const d = await finnhub(`/search?q=${encodeURIComponent(q)}`);
+  return (d.result || []).slice(0, 8).map((r) => ({ symbol: r.symbol, name: r.description, type: r.type }));
+}
+
+/* ───────────── Sports ───────────── */
+
+export const LEAGUES = [
+  { id: 'soccer/eng.1', name: 'Premier League' }, { id: 'soccer/uefa.champions', name: 'Champions League' },
+  { id: 'soccer/esp.1', name: 'La Liga' }, { id: 'soccer/ger.1', name: 'Bundesliga' }, { id: 'soccer/ita.1', name: 'Serie A' },
+  { id: 'soccer/fra.1', name: 'Ligue 1' }, { id: 'soccer/usa.1', name: 'MLS' },
+  { id: 'basketball/nba', name: 'NBA' }, { id: 'football/nfl', name: 'NFL' }, { id: 'baseball/mlb', name: 'MLB' }, { id: 'hockey/nhl', name: 'NHL' },
+];
+
+/**
+ * Today's scoreboard for a league, including games in progress. Uses ESPN's public scoreboard feed,
+ * which is unofficial and undocumented, so it may change without notice.
+ */
+export async function scoreboard(league) {
+  const d = await getJSON(`https://site.api.espn.com/apis/site/v2/sports/${league}/scoreboard`, { timeout: 9000 });
+  return (d.events || []).map((e) => {
+    const c = e.competitions?.[0] || {};
+    const side = (ha) => {
+      const t = (c.competitors || []).find((x) => x.homeAway === ha) || {};
+      return { name: t.team?.displayName || t.team?.name || '', short: t.team?.abbreviation || '', logo: t.team?.logo || '', score: t.score ?? '', winner: !!t.winner };
+    };
+    return {
+      id: e.id, name: e.name, date: Date.parse(e.date),
+      state: e.status?.type?.state || 'pre', // pre | in | post
+      detail: e.status?.type?.shortDetail || e.status?.type?.detail || '',
+      home: side('home'), away: side('away'), venue: c.venue?.fullName || '',
+      link: e.links?.find((l) => (l.rel || []).includes('summary'))?.href || '',
+    };
+  });
+}
+
+/** A sports team's latest results and upcoming fixtures (TheSportsDB free tier; any sport, including cricket). */
+const SPORTSDB = 'https://www.thesportsdb.com/api/v1/json/3';
+export async function team(name) {
+  const s = await getJSON(`${SPORTSDB}/searchteams.php?t=${encodeURIComponent(name)}`, { timeout: 9000 });
+  const t = s.teams?.[0];
+  if (!t) return null;
+  const [last, next] = await Promise.all([
+    getJSON(`${SPORTSDB}/eventslast.php?id=${t.idTeam}`, { timeout: 9000 }).catch(() => ({})),
+    getJSON(`${SPORTSDB}/eventsnext.php?id=${t.idTeam}`, { timeout: 9000 }).catch(() => ({})),
+  ]);
+  const ev = (e) => ({ name: e.strEvent, date: e.dateEvent, time: e.strTime, league: e.strLeague, home: e.strHomeTeam, away: e.strAwayTeam, homeScore: e.intHomeScore, awayScore: e.intAwayScore });
+  return {
+    name: t.strTeam, sport: t.strSport, league: t.strLeague, country: t.strCountry, badge: t.strBadge || t.strTeamBadge || '', stadium: t.strStadium,
+    last: (last.results || []).map(ev), next: (next.events || []).map(ev),
+  };
 }

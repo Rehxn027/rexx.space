@@ -22,18 +22,22 @@ Type anything, like *Marie Curie*, *Tokyo*, *serendipity* or *the Moon landing*.
 | 🧠 **Encyclopedia** | Summary, full article, related topics | Wikipedia (31 languages) |
 | 🧬 **Facts** | Born/died, occupation, awards, population, capital, founders… | Wikidata |
 | 🔗 **Official accounts** | Website, X, Instagram, YouTube, GitHub, Mastodon, Bluesky… | Wikidata |
-| 📖 **Dictionary** | Definitions, pronunciation with audio, examples, synonyms | Free Dictionary API, Wiktionary |
-| 📄 **Research papers** | About 250 million papers, with citation counts, abstracts and free PDFs | OpenAlex, Europe PMC (biomedicine) |
+| 📖 **Dictionary** | Definitions, pronunciation with audio, examples, synonyms, translation | Free Dictionary API, Wiktionary, MyMemory |
+| 🌐 **Other languages** | The topic's name and article in every Wikipedia language | Wikipedia interlanguage links |
+| 📄 **Research papers** | Search all fields, arXiv preprints, PubMed or Crossref; paste a DOI to look one up | OpenAlex, arXiv, Europe PMC / PubMed, Crossref |
 | 📗 **Free books** | 75,000+ public-domain books to read in the app or save offline | Project Gutenberg (via Gutendex) |
+| 📜 **Scanned books** | Original page scans of public-domain books, readable in the app | Internet Archive (via Open Library) |
 | 📚 **Other books** | Books about the topic | Open Library |
 | 🖼️ **Images** | Freely licensed photos and illustrations | Wikimedia Commons |
 | 🗺️ **Places** | Map, weather, 5-day forecast, sunrise/sunset, air quality, nearby places, travel guide | OpenStreetMap, Open‑Meteo, Wikipedia, Wikivoyage |
 | 🏳️ **Countries** | Flag, capital, languages, currency and its exchange rate | REST Countries, Frankfurter (ECB) |
-| 📰 **News** | Latest coverage worldwide | GDELT |
-| 🦋 **Public conversation** | What people are posting | Bluesky, Mastodon, Hacker News |
+| 📰 **News** | Coverage worldwide in many languages, a 3-month coverage trend, and AI summaries of full articles | GDELT, Claude (web fetch) |
+| 💹 **Markets** | Crypto prices with 7-day trends, official exchange rates with a converter and 90-day chart, live stock quotes | CoinGecko, Frankfurter (ECB), Finnhub (free key) |
+| 🏆 **Sports** | Today's scores including live games (football, NBA, NFL, MLB, NHL), and results and fixtures for any team in any sport | ESPN scoreboard feed, TheSportsDB |
+| 🦋 **Public conversation** | What people are posting, plus one-tap search on X, Instagram, TikTok, Facebook, YouTube and more | Bluesky, Mastodon, Hacker News, Reddit, Lemmy |
 | ⏳ **History** | On this day, for any date: events, births, deaths, holidays | Wikimedia feeds |
 | 🌋 **Live planet** | Earthquakes this week and the ISS position | USGS, wheretheiss.at |
-| 💬 **Ask** | Answers to questions in any language, citing the sources it used | Claude (Anthropic), with your own API key |
+| 💬 **Ask** | Answers to questions in any language, citing the sources it used; can also search the live web | Claude (Anthropic), with your own API key |
 | 📝 **Cite** | APA, MLA, Chicago, Harvard and BibTeX for articles, papers and books | Built in |
 
 ### Sections
@@ -41,7 +45,8 @@ Type anything, like *Marie Curie*, *Tokyo*, *serendipity* or *the Moon landing*.
 - **Today:** the world's front page, refreshed daily, plus "On this day" for any date.
 - **Research:** search papers, sort by relevance, citations or date, filter to free-to-read, cite or save any paper.
 - **Library:** browse and read free books, cite them, and save whole books for offline reading.
-- **Ask:** ask a question and get an answer with numbered citations back to Wikipedia articles and papers.
+- **Ask:** ask a question and get an answer with numbered citations back to Wikipedia articles, papers and (optionally) live web pages.
+- **Live:** News, Markets, Sports, Social and Planet in one place.
 - **Pulse:** trending on Wikipedia, Hacker News, Mastodon and Bluesky.
 - **Planet:** a live map of earthquakes and the International Space Station.
 - **Vault:** articles, papers and books you saved to your device. They work without a connection.
@@ -114,6 +119,22 @@ Ask sends your question, plus the Wikipedia articles and paper abstracts it foun
 - The key stays in your browser and is sent only to `api.anthropic.com`. rexx.space has no server. Choose "Remember on this device" only on a device you trust.
 - If Claude's safety system declines a question, the request automatically falls back to another model (`fallbacks: "default"`).
 
+## 🔑 Optional keys
+
+Everything works without an account except three features, which use free or pay-as-you-go keys that each user adds in the app. Keys stay in that user's browser and go only to the service they belong to.
+
+| Feature | Key | Cost |
+|---|---|---|
+| Ask, article summaries, live web search | Anthropic API key ([Claude Console](https://console.anthropic.com/settings/keys)) | A few US cents per question; web search adds about 1 cent per search |
+| Live stock prices | Finnhub key ([finnhub.io](https://finnhub.io/register)) | Free plan |
+
+## 🚧 What it still can't do
+
+- **X, Instagram, TikTok, Facebook:** they don't offer open access to posts, so rexx shows official accounts (from Wikidata) and opens each platform's own search. Reddit limits anonymous access too; its card hides if Reddit refuses.
+- **Paywalled and private information:** not available to any app. For papers, rexx shows free legal copies where they exist (OpenAlex/Unpaywall data). Article summaries say so when a page is paywalled instead of guessing.
+- **Live cricket scores:** no free live source; search a team for its latest results and fixtures instead.
+- **Stock prices without a key:** free stock data needs a key; crypto and currency rates don't.
+
 ## 🧩 How it's built
 
 ```
@@ -125,7 +146,8 @@ js/app.js             router + views (Today, Search, Pulse, Planet, Vault, Offli
 js/api.js             every data source; all free, keyless and CORS-enabled
 js/ask.js             Ask: gathers sources and calls Claude through the Anthropic SDK
 js/cite.js            APA / MLA / Chicago / Harvard / BibTeX formatter
-js/views/             Research, Library, Ask, On this day and the Cite dialog
+js/views/             Research, Library, Ask, Live (news, markets, sports), On this day and the Cite dialog
+js/chart.js           sparklines and line charts with hover tooltips
 js/vendor/            the Anthropic SDK bundled as one browser module
 js/vault.js           IndexedDB storage for offline articles
 js/themes.js          theme list + picker

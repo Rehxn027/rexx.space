@@ -11,6 +11,7 @@ let sessionKey = '';
 const SYSTEM = `You answer questions for students and researchers using rexx.space, a knowledge app.
 The user's message contains source documents gathered for the question: encyclopedia articles and research paper abstracts.
 Base your answer on those sources and cite them. Where the sources don't cover part of the question, say so plainly; if you add general knowledge, label it as not from the sources.
+When web search is available, use it for recent events or anything the provided sources don't cover, and cite the web pages you use.
 Answer in the language of the question. Start with a direct answer in one or two sentences, then give the key details. Use short paragraphs, and a bulleted list where it helps. Keep it under about 350 words unless the question needs more.`;
 
 export function getKey() {
@@ -51,13 +52,38 @@ export async function gatherSources(question, onProgress = () => {}) {
   return sources;
 }
 
-/**
- * Stream an answer. onText receives text as it arrives. Resolves with the final message,
- * whose text blocks carry citations pointing back into `sources` by document_index.
- */
-export async function answer(question, sources, onText, signal) {
+async function client() {
   const { default: Anthropic } = await import('./vendor/anthropic-sdk.js');
-  const client = new Anthropic({ apiKey: getKey(), dangerouslyAllowBrowser: true });
+  return new Anthropic({ apiKey: getKey(), dangerouslyAllowBrowser: true });
+}
+
+/**
+ * Stream one request, resuming if a server-side tool loop pauses (stop_reason "pause_turn").
+ * Returns the last message with `content` holding every block from all continuations.
+ */
+async function streamWithResume(c, params, onText, signal) {
+  const messages = [...params.messages];
+  const blocks = [];
+  let final;
+  for (let i = 0; i < 4; i++) {
+    const stream = c.beta.messages.stream({ ...params, messages }, { signal });
+    stream.on('text', onText);
+    final = await stream.finalMessage();
+    blocks.push(...final.content);
+    if (final.stop_reason !== 'pause_turn') break;
+    // Re-send the paused turn as-is; the server picks up where it left off.
+    messages.push({ role: 'assistant', content: final.content });
+  }
+  return { ...final, content: blocks };
+}
+
+/**
+ * Stream an answer. onText receives text as it arrives. Resolves with the final message, whose
+ * text blocks carry citations: document_index points into `sources`; web results carry a url.
+ * With webSearch, Claude may also search the live web (billed per search on the user's account).
+ */
+export async function answer(question, sources, onText, signal, { webSearch = false } = {}) {
+  const c = await client();
   const docs = sources.map((s) => ({
     type: 'document',
     source: { type: 'text', media_type: 'text/plain', data: s.text },
@@ -65,7 +91,7 @@ export async function answer(question, sources, onText, signal) {
     context: `${s.kind}. ${s.url}`,
     citations: { enabled: true },
   }));
-  const stream = client.beta.messages.stream({
+  return streamWithResume(c, {
     model: MODEL,
     max_tokens: 64000,
     // If Claude Opus 5.5's safety classifier declines, the API retries on a suitable fallback model.
@@ -73,10 +99,34 @@ export async function answer(question, sources, onText, signal) {
     fallbacks: 'default',
     output_config: { effort: 'medium' },
     system: SYSTEM,
+    ...(webSearch ? { tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 5 }] } : {}),
     messages: [{ role: 'user', content: [...docs, { type: 'text', text: question }] }],
-  }, { signal });
-  stream.on('text', onText);
-  return stream.finalMessage();
+  }, onText, signal);
+}
+
+const SUMMARY_SYSTEM = `You summarize news articles for students and researchers.
+Fetch the article at the URL you are given with the web_fetch tool, then summarize only what it says.
+If the page can't be fetched, is behind a paywall, or doesn't contain the article, say so plainly and stop: never guess what an article says.
+Write in the language of the article's headline. Format:
+- One sentence: what happened.
+- Three to five bullet points: the key facts, numbers, people and places.
+- One short paragraph of context: why it matters or what came before, if the article gives it.
+- Note any claims the article attributes to a single source or presents as disputed.
+Keep it under 220 words.`;
+
+/** Read a news article at `url` (fetched by Claude's web_fetch tool) and stream a summary. */
+export async function summarizeArticle(url, title, onText, signal) {
+  const c = await client();
+  return streamWithResume(c, {
+    model: MODEL,
+    max_tokens: 16000,
+    betas: ['server-side-fallback-2026-07-01'],
+    fallbacks: 'default',
+    output_config: { effort: 'low' },
+    system: SUMMARY_SYSTEM,
+    tools: [{ type: 'web_fetch_20260209', name: 'web_fetch', max_uses: 2 }],
+    messages: [{ role: 'user', content: `Summarize this article.\nHeadline: ${title}\nURL: ${url}` }],
+  }, onText, signal);
 }
 
 /** Turn an SDK error into a sentence the user can act on. */
