@@ -360,3 +360,37 @@
   --title-fill: linear-gradient(90deg, #5ac8ff, #ff78dc); --map-filter: invert(.92) hue-rotate(190deg) saturate(.6) brightness(.85); color-scheme: dark;
 }
 [data-look="neural"] .card h3::before { content: "// "; color: var(--faint); }
+
+/* ════════════ Everyday themes: plain Light and Dark with a light-blue (sky) accent ════════════ */
+
+/* Light: a clean, standard light theme. Light-blue buttons with navy text; deeper sky for links. */
+[data-look="light"] {
+  --bg: #f6f9fc; --bg-image: none;
+  --surface: #ffffff; --surface-solid: #ffffff; --surface-2: #eef3f8;
+  --line: #dfe6ee; --line-strong: #b9c6d3; --text: #15202b; --muted: #5b6b7b; --faint: #93a1b0;
+  --accent: #0369a1; --accent-2: #0369a1; --accent-soft: rgba(56, 189, 248, .18); --on-accent: #0c2a3e; --highlight: #0277b6;
+  --ok: #15803d; --mid: #b45309; --bad: #c2410c;
+  --font: 'Inter', system-ui, sans-serif; --display: 'Inter', system-ui, sans-serif; --display-weight: 700; --display-tracking: -0.035em;
+  --h3-color: #0369a1; --h3-size: 11.5px;
+  --radius: 12px; --radius-sm: 8px; --shadow: 0 1px 2px rgba(21, 32, 43, .05), 0 1px 0 rgba(21, 32, 43, .02);
+  --shadow-hover: 0 6px 18px rgba(3, 105, 161, .14); --omni-shadow: 0 1px 2px rgba(21, 32, 43, .06);
+  --btn-bg: #7dd3fc; --btn-text: #0c2a3e; --topbar-bg: rgba(246, 249, 252, .9);
+  --title-fill: linear-gradient(#0277b6, #0277b6);
+  color-scheme: light;
+}
+
+/* Dark: a standard dark theme in the same light-blue family. */
+[data-look="dark"] {
+  --bg: #0f1216; --bg-image: none;
+  --surface: #171b21; --surface-solid: #171b21; --surface-2: #1e232b;
+  --line: #2a313a; --line-strong: #3a434e; --text: #e6e9ee; --muted: #9aa4b1; --faint: #6b7581;
+  --accent: #7dd3fc; --accent-2: #7dd3fc; --accent-soft: rgba(125, 211, 252, .14); --on-accent: #0b2233; --highlight: #7dd3fc;
+  --ok: #4ade80; --mid: #fbbf24; --bad: #f87171;
+  --font: 'Inter', system-ui, sans-serif; --display: 'Inter', system-ui, sans-serif; --display-weight: 700; --display-tracking: -0.035em;
+  --h3-color: #7dd3fc; --h3-size: 11.5px;
+  --radius: 12px; --radius-sm: 8px; --shadow: none; --shadow-hover: 0 6px 18px rgba(0, 0, 0, .4);
+  --btn-bg: #7dd3fc; --btn-text: #0b2233; --topbar-bg: rgba(15, 18, 22, .9);
+  --title-fill: linear-gradient(#7dd3fc, #7dd3fc);
+  --map-filter: invert(.92) hue-rotate(180deg) saturate(.4) brightness(.9);
+  color-scheme: dark;
+}

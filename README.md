@@ -54,9 +54,11 @@ Type anything, like *Marie Curie*, *Tokyo*, *serendipity* or *the Moon landing*.
 
 Little extras: <kbd>/</kbd> focuses search, arrow keys move through suggestions, 🎲 **Teleport** opens a random article, and reduced-motion settings are respected.
 
-### 🎨 26 themes + Auto
+### 🎨 28 themes, a custom theme builder, and Auto
 
 On first visit you get a **Pick your look** screen with a live preview. Change it any time with the **Theme** button or by pressing <kbd>t</kbd>. Your choice is remembered, and every theme works offline because the fonts are self-hosted (`fonts/`, SIL OFL).
+
+**Everyday:** **Light** (clean, with a sky-blue accent), **Dark** (calm dark in the same sky blue), and **Custom**: choose Light or Dark, then an accent from a grid of 24 colours (or any colour at all) and a background from a grid of 8. Custom themes adjust text and link shades automatically so every combination meets WCAG AA contrast.
 
 **Immersive (animated backgrounds):** Cosmos (starfield and nebula), Abyss (deep sea with bubbles and bioluminescence), Aurora (northern lights), Synthwave (neon sun over a moving grid), Fireflies, Rainfall, Embers (campfire sparks), Snowfall and Neural (a network that reaches for your cursor).
 
@@ -140,7 +142,7 @@ Everything works without an account except three features, which use free or pay
 ```
 index.html            app shell
 css/style.css         layout, driven entirely by design tokens
-css/themes.css        26 themes (each just redefines the tokens)
+css/themes.css        28 themes (each just redefines the tokens); Custom is computed in js/themes.js
 css/fonts.css         self-hosted @font-face rules (fonts/ folder)
 js/app.js             router + views (Today, Search, Pulse, Planet, Vault, Offline)
 js/api.js             every data source; all free, keyless and CORS-enabled

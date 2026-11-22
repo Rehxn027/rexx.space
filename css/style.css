@@ -489,3 +489,24 @@ code { font-family: var(--mono); font-size: .9em; background: var(--surface-2); 
 .tr-out { flex-basis: 100%; }
 .scan-frame { margin-top: 18px; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--surface-2); }
 .scan-frame iframe { width: 100%; height: min(80vh, 760px); border: 0; display: block; }
+
+/* ── custom theme editor ── */
+.custom-editor { margin: 10px 4px 4px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-2); }
+.custom-editor .theme-group { margin-top: 0; }
+.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: var(--pill); padding: 2px; gap: 2px; }
+.seg button { all: unset; cursor: pointer; padding: 5px 14px; border-radius: var(--pill); font: 500 13px var(--font); color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--btn-bg); color: var(--btn-text); }
+.seg button:focus-visible { outline: 2px solid var(--accent); }
+.ce-label { margin: 12px 0 6px; font: 600 12px var(--font); color: var(--muted); }
+.color-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(28px, 1fr)); gap: 7px; }
+.cg { all: unset; box-sizing: border-box; cursor: pointer; aspect-ratio: 1; border-radius: 8px; border: 1px solid rgba(0, 0, 0, .18); position: relative; display: grid; place-items: center; }
+.cg:hover { transform: scale(1.08); }
+.cg[aria-pressed="true"] { outline: 2px solid var(--text); outline-offset: 2px; }
+.cg[aria-pressed="true"]::after { content: "✓"; color: #fff; font: 700 13px var(--font); text-shadow: 0 0 2px #000, 0 0 4px #000; }
+.cg:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cg.any { background: conic-gradient(#ef4444, #eab308, #22c55e, #06b6d4, #3b82f6, #a855f7, #ec4899, #ef4444); }
+.cg.any[aria-pressed="false"] span { color: #fff; font: 700 16px var(--font); text-shadow: 0 0 3px #000; }
+.cg.any[aria-pressed="true"] span { display: none; }
+.cg.any input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; border: 0; padding: 0; }
+.bg-grid .cg { border-color: var(--line-strong); }
+.bg-grid .cg[aria-pressed="true"]::after { color: var(--text); text-shadow: none; }

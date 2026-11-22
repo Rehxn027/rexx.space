@@ -3,7 +3,7 @@
 //  • API data: network-first with a timeout, falling back to the last good response.
 //  • Images: cache-first, capped so the cache doesn't grow forever.
 
-const VERSION = 'v3.0.0';
+const VERSION = 'v3.1.0';
 const SHELL = `rexx-shell-${VERSION}`;
 const DATA = 'rexx-data';
 const IMG = 'rexx-img';
