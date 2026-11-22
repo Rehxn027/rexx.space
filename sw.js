@@ -3,14 +3,14 @@
 //  • API data: network-first with a timeout, falling back to the last good response.
 //  • Images: cache-first, capped so the cache doesn't grow forever.
 
-const VERSION = 'v1.3.0';
+const VERSION = 'v1.4.0';
 const SHELL = `rexx-shell-${VERSION}`;
 const DATA = 'rexx-data';
 const IMG = 'rexx-img';
 
 const SHELL_FILES = [
   './', './index.html', './css/style.css', './js/app.js', './js/api.js', './js/vault.js',
-  './js/ui.js', './js/themes.js', './css/themes.css', './css/fonts.css', './manifest.webmanifest', './icons/icon.svg',
+  './js/ui.js', './js/themes.js', './js/fx.js', './css/themes.css', './css/fonts.css', './manifest.webmanifest', './icons/icon.svg',
 ];
 
 self.addEventListener('install', (e) => {

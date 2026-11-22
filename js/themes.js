@@ -1,4 +1,6 @@
 // Theme registry, picker and first-visit chooser.
+import { setEffect, hasEffect } from './fx.js';
+
 // Swatches: [background, surface, accent, accent-2, text].
 export const THEMES = [
   { id: 'auto', name: 'Auto', note: 'Broadsheet, dark at night', sw: ['#f6f1e7', '#fffdf8', '#c8341f', '#1e1b15', '#16140f'], color: '#f6f1e7' },
@@ -19,6 +21,16 @@ export const THEMES = [
   { id: 'candy', name: 'Bubblegum', note: 'Playful & chunky', sw: ['#fff0f6', '#ffffff', '#ff3d8b', '#6b4cff', '#2b0f3a'], color: '#fff0f6' },
   { id: 'ink', name: 'Ink', note: 'Pure black & white', sw: ['#ffffff', '#f2f2f2', '#000000', '#4d4d4d', '#000000'], color: '#ffffff' },
   { id: 'sakura', name: 'Sakura', note: 'Soft Japanese minimal', sw: ['#fdf6f7', '#fbeaee', '#d24d6e', '#5f84ab', '#3d2a30'], color: '#fdf6f7' },
+  // Immersive: animated backgrounds from js/fx.js
+  { id: 'cosmos', name: 'Cosmos', note: 'Starfield & nebula', sw: ['#07040f', '#150e2c', '#8b7bff', '#ff6ad5', '#9ef0ff'], color: '#07040f' },
+  { id: 'abyss', name: 'Abyss', note: 'Deep sea & glowing life', sw: ['#0a3a5c', '#04223a', '#3de0d0', '#7fd4ff', '#010b16'], color: '#021526' },
+  { id: 'aurora', name: 'Aurora', note: 'Northern lights', sw: ['#050b14', '#0c1828', '#5cffb1', '#7fe8ff', '#b48cff'], color: '#050b14' },
+  { id: 'synthwave', name: 'Synthwave', note: 'Neon sunset grid', sw: ['#0d0221', '#3b0a57', '#ff3cc8', '#2de2e6', '#ffe66d'], color: '#0d0221' },
+  { id: 'fireflies', name: 'Fireflies', note: 'Forest after dark', sw: ['#050d08', '#0d1f15', '#e6ff8c', '#c3e88d', '#ffd27a'], color: '#050d08' },
+  { id: 'rain', name: 'Rainfall', note: 'Rainy window, warm lamp', sw: ['#121a24', '#18222e', '#9cc4ee', '#ffb45a', '#e4ebf3'], color: '#121a24' },
+  { id: 'embers', name: 'Embers', note: 'Campfire sparks', sw: ['#0f0806', '#1e110b', '#ff7a2e', '#ffc06b', '#c2341a'], color: '#0f0806' },
+  { id: 'snow', name: 'Snowfall', note: 'Bright winter morning', sw: ['#dbe8f5', '#ffffff', '#2f6fd6', '#6aa3f0', '#16283d'], color: '#eef4fa' },
+  { id: 'neural', name: 'Neural', note: 'Living network of ideas', sw: ['#050a18', '#0b1530', '#5ac8ff', '#ff78dc', '#e6f0ff'], color: '#050a18' },
 ];
 
 const KEY = 'rexx-theme';
@@ -44,6 +56,7 @@ export function applyTheme(id, { save = true } = {}) {
   chosen = THEMES.some((t) => t.id === id) ? id : 'auto';
   const t = THEMES.find((x) => x.id === resolve(chosen));
   document.documentElement.dataset.look = t.id;
+  setEffect(t.id);
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', t.color);
   if (save) store.set(KEY, chosen);
   document.querySelectorAll('.theme-opt').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.id === chosen)));
@@ -52,11 +65,18 @@ dark.addEventListener('change', () => { if (chosen === 'auto') applyTheme('auto'
 new MutationObserver(() => { if (chosen === 'auto') applyTheme('auto', { save: false }); })
   .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
-const optionsHTML = () => THEMES.map((t) => `
+const option = (t) => `
   <button type="button" class="theme-opt" data-id="${t.id}" aria-pressed="false">
-    <span class="sw">${t.sw.map((c) => `<i style="background:${c}"></i>`).join('')}</span>
+    <span class="sw${hasEffect(t.id) ? ' fx' : ''}">${t.sw.map((c) => `<i style="background:${c}"></i>`).join('')}</span>
     <span>${t.name}<br><small>${t.note}</small></span>
-  </button>`).join('');
+  </button>`;
+
+const optionsHTML = () => {
+  const immersive = THEMES.filter((t) => hasEffect(t.id));
+  const classic = THEMES.filter((t) => !hasEffect(t.id));
+  return `<p class="theme-group">Immersive · animated</p><div class="theme-list">${immersive.map(option).join('')}</div>
+    <p class="theme-group">Classic</p><div class="theme-list">${classic.map(option).join('')}</div>`;
+};
 
 function wire(root) {
   root.addEventListener('click', (e) => {
@@ -66,7 +86,7 @@ function wire(root) {
 }
 
 export function mountPicker(button, panel) {
-  panel.innerHTML = `<h4>Theme</h4><div class="theme-list">${optionsHTML()}</div>`;
+  panel.innerHTML = `<h4>Theme</h4>${optionsHTML()}`;
   wire(panel);
   const toggle = (open = panel.hidden) => { panel.hidden = !open; button.setAttribute('aria-expanded', String(open)); };
   button.addEventListener('click', (e) => { e.stopPropagation(); toggle(); });
@@ -88,7 +108,7 @@ function welcome() {
   dlg.innerHTML = `
     <h2 id="welcome-title">Pick your look</h2>
     <p class="muted">Tap a theme to preview it on the page behind. You can change it any time with the <b>Theme</b> button or by pressing <kbd>t</kbd>.</p>
-    <div class="theme-list">${optionsHTML()}</div>
+    ${optionsHTML()}
     <div class="welcome-actions"><button type="button" class="go">Start exploring →</button></div>`;
   document.body.append(dlg);
   wire(dlg);
