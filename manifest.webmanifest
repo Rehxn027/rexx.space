@@ -1,13 +1,19 @@
 {
+  "id": "./",
   "name": "rexx.space — the world, in one search",
   "short_name": "rexx",
-  "description": "One search for everything: knowledge, people, places, live events and social pulse. Works offline.",
+  "description": "One search for everything: knowledge, research, books, news, markets, sports and the social pulse. Works offline.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f6f1e7",
-  "theme_color": "#c8341f",
+  "background_color": "#2563eb",
+  "theme_color": "#2563eb",
+  "categories": ["education", "books", "news", "reference"],
   "icons": [
-    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
   ]
 }

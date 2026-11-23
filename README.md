@@ -172,6 +172,7 @@ js/fx.js              animated backgrounds for the immersive themes
 js/ui.js              tiny escaped-HTML templating + helpers
 sw.js                 service worker: shell precache, network-first data, image cache
 manifest.webmanifest  PWA install metadata
+icons/                app icons (PNG sizes for Android, iOS and browsers); rebuild with node icons/build-icons.mjs
 ```
 
 - **No backend.** Your browser talks directly to the open APIs, so nothing is proxied or logged.
