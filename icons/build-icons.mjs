@@ -1,5 +1,5 @@
-// Builds rexx.space's app icons from one design: a magnifying glass whose lens holds a globe,
-// on a sky-to-indigo gradient, with a small spark of discovery.
+// Builds rexx.space's app icons from one design: a white magnifying glass with a grey globe in
+// its lens, on black. Only black, grey and white.
 //
 //   node icons/build-icons.mjs        (needs Playwright with Chromium installed)
 //
@@ -14,46 +14,36 @@ const { chromium } = createRequire(import.meta.url)('playwright');
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-const defs = `<defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#38bdf8"/>
-      <stop offset="0.55" stop-color="#2563eb"/>
-      <stop offset="1" stop-color="#3730a3"/>
-    </linearGradient>
-    <radialGradient id="shine" cx="0.22" cy="0.15" r="0.75">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.32"/>
-      <stop offset="0.6" stop-color="#ffffff" stop-opacity="0"/>
-    </radialGradient>
-    <clipPath id="lens"><circle cx="226" cy="226" r="100"/></clipPath>
-  </defs>`;
+const BLACK = '#111111';
+const GREY = '#9a9a9a';
+const WHITE = '#ffffff';
 
-/** The glyph, drawn on a 512 grid. `detail` adds the globe's latitude lines (dropped at tiny sizes). */
+const defs = `<defs><clipPath id="lens"><circle cx="232" cy="232" r="100"/></clipPath></defs>`;
+
+/** The glyph, drawn on a 512 grid: a white magnifier with a grey globe in the lens. `detail` adds latitude lines. */
 const glyph = (detail = true) => `
-  <g fill="none" stroke="#ffffff" stroke-linecap="round">
-    <g clip-path="url(#lens)" stroke-opacity="0.9" stroke-width="${detail ? 11 : 18}">
-      <line x1="110" y1="226" x2="342" y2="226"/>
-      <ellipse cx="226" cy="226" rx="48" ry="104"/>
-      ${detail ? '<line x1="226" y1="110" x2="226" y2="342"/><path d="M134 170 Q226 196 318 170"/><path d="M134 282 Q226 256 318 282"/>' : ''}
+  <g fill="none" stroke-linecap="round">
+    <g clip-path="url(#lens)" stroke="${GREY}" stroke-width="${detail ? 12 : 20}">
+      <line x1="116" y1="232" x2="348" y2="232"/>
+      <ellipse cx="232" cy="232" rx="48" ry="104"/>
+      ${detail ? '<path d="M140 176 Q232 202 324 176"/><path d="M140 288 Q232 262 324 288"/>' : ''}
     </g>
-    <circle cx="226" cy="226" r="118" stroke-width="${detail ? 34 : 44}"/>
-    <line x1="314" y1="314" x2="398" y2="398" stroke-width="${detail ? 48 : 58}"/>
-  </g>
-  <path d="M392 96 L402 126 L432 136 L402 146 L392 176 L382 146 L352 136 L382 126 Z" fill="#fde68a"/>`;
+    <circle cx="232" cy="232" r="120" stroke="${WHITE}" stroke-width="${detail ? 34 : 46}"/>
+    <line x1="320" y1="320" x2="398" y2="398" stroke="${WHITE}" stroke-width="${detail ? 48 : 60}"/>
+  </g>`;
 
 /** Rounded-square icon with transparent corners (browsers, Android "any"). */
 const iconAny = (detail = true) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   ${defs}
-  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
-  <rect width="512" height="512" rx="116" fill="url(#shine)"/>
+  <rect width="512" height="512" rx="116" fill="${BLACK}"/>
   ${glyph(detail)}
 </svg>`;
 
 /** Full-bleed square with the glyph inside the safe zone (Android adaptive icons, iOS home screen). */
 const iconFull = (scale) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   ${defs}
-  <rect width="512" height="512" fill="url(#bg)"/>
-  <rect width="512" height="512" fill="url(#shine)"/>
-  <g transform="translate(256 256) scale(${scale}) translate(-268 -250)">${glyph(true)}</g>
+  <rect width="512" height="512" fill="${BLACK}"/>
+  <g transform="translate(256 256) scale(${scale}) translate(-262 -262)">${glyph(true)}</g>
 </svg>`;
 
 const svgs = {
