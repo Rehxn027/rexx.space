@@ -3,7 +3,7 @@
 //  • API data: network-first with a timeout, falling back to the last good response.
 //  • Images: cache-first, capped so the cache doesn't grow forever.
 
-const VERSION = 'v4.0.1';
+const VERSION = 'v4.1.0';
 const SHELL = `rexx-shell-${VERSION}`;
 const DATA = 'rexx-data';
 const IMG = 'rexx-img';
@@ -11,7 +11,8 @@ const IMG = 'rexx-img';
 const SHELL_FILES = [
   './', './index.html', './css/style.css', './js/app.js', './js/api.js', './js/vault.js',
   './js/ui.js', './js/themes.js', './js/fx.js', './js/cite.js', './js/ask.js',
-  './js/views/research.js', './js/views/library.js', './js/views/ask.js', './js/views/day.js', './js/views/cite-dialog.js', './js/views/live.js', './js/chart.js', './js/links.js', './js/views/reading.js', './css/themes.css', './css/fonts.css', './manifest.webmanifest', './icons/icon.svg',
+  './js/views/research.js', './js/views/library.js', './js/views/ask.js', './js/views/day.js', './js/views/cite-dialog.js', './js/views/live.js', './js/chart.js', './js/links.js', './js/views/reading.js', './css/themes.css', './css/fonts.css', './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png',
+  './icons/maskable-192.png', './icons/maskable-512.png', './icons/apple-touch-icon.png', './icons/favicon-32.png', './icons/favicon-16.png',
 ];
 
 self.addEventListener('install', (e) => {
