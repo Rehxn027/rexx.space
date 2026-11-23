@@ -3,6 +3,7 @@ import * as api from '../api.js';
 import { getKey, summarizeArticle, explainError } from '../ask.js';
 import { html, raw, esc, $, $$, ago, compact, toast, slot, card, miniMarkdown } from '../ui.js';
 import { sparkline, lineChart, wireCharts } from '../chart.js';
+import { toInternal } from '../links.js';
 
 export const LIVE_SECTIONS = [
   ['news', 'News'], ['markets', 'Markets'], ['sports', 'Sports'], ['social', 'Social'], ['planet', 'Planet'],
@@ -18,7 +19,7 @@ export function newsItemsHTML(items, { images = false } = {}) {
   return html`<ul class="list news-list">${items.map((a, i) => raw(html`<li class="news-item" data-i="${i}">
     ${images && a.image ? raw(html`<img class="news-img" src="${a.image}" alt="" loading="lazy" referrerpolicy="no-referrer">`) : ''}
     <div class="news-main">
-      <a href="${a.url}" target="_blank" rel="noopener" class="news-title">${a.title}</a>
+      <a href="${toInternal(a.url) || a.url}" class="news-title">${a.title}</a>
       <span class="meta">${a.source}${a.country ? ` · ${a.country}` : ''}${a.language && a.language !== 'English' ? ` · ${a.language}` : ''}${a.time ? ` · ${ago(a.time)}` : ''}</span>
       <span class="news-actions"><button type="button" class="ghost small" data-act="summarize">Summarize article</button></span>
       <div class="summary" hidden></div>
@@ -130,7 +131,7 @@ export function finnhubKeyForm(onSaved) {
       api.setFinnhubKey(v); toast('Finnhub key saved on this device.'); onSaved();
     });
   });
-  return html`<p>Live stock prices need a free key from <a href="https://finnhub.io/register" target="_blank" rel="noopener">Finnhub ↗</a> (no card needed). It stays in this browser and is sent only to Finnhub.</p>
+  return html`<p>Live stock prices need a free key from <a href="https://finnhub.io/register" target="_blank" rel="noopener" data-external="1">Finnhub ↗</a> (no card needed). It stays in this browser and is sent only to Finnhub.</p>
     <form class="tool-form" id="${id}"><label class="sr-only" for="${id}-in">Finnhub API key</label><input id="${id}-in" type="password" placeholder="Your Finnhub API key" autocomplete="off" spellcheck="false"><button type="submit">Save key</button></form>`;
 }
 
@@ -279,7 +280,7 @@ export function teamHTML(t) {
 /** Reddit or Lemmy posts as a list. */
 export function forumList(posts) {
   if (!posts?.length) return '';
-  return html`<ol class="list">${posts.map((p) => raw(html`<li><a href="${p.url}" target="_blank" rel="noopener">${p.title}</a>
+  return html`<ol class="list">${posts.map((p) => raw(html`<li><a href="${p.url}">${p.title}</a>
     <span class="meta">${p.community} · ▲ ${compact(p.score)} · ${compact(p.comments)} comments${p.time ? ` · ${ago(p.time)}` : ''}</span></li>`))}</ol>`;
 }
 
@@ -294,6 +295,6 @@ export function elsewhereHTML(q) {
     ['Threads', `https://www.threads.net/search?q=${e}`], ['LinkedIn', `https://www.linkedin.com/search/results/all/?keywords=${e}`],
     ['Google Scholar', `https://scholar.google.com/scholar?q=${e}`], ['Google News', `https://news.google.com/search?q=${e}`],
   ];
-  return html`<div class="elsewhere">${links.map(([n, u]) => raw(html`<a class="btn ghost small" href="${u}" target="_blank" rel="noopener">${n} ↗</a>`))}</div>
-    <p class="meta">These platforms don't offer open access to their posts, so rexx opens their own search instead.</p>`;
+  return html`<div class="elsewhere">${links.map(([n, u]) => raw(html`<a class="btn ghost small" href="${u}" target="_blank" rel="noopener" data-external="1">${n} ↗</a>`))}</div>
+    <p class="meta">These platforms don't let other apps show their posts, so these buttons open their own search in a new tab. Everything else in rexx stays inside the app.</p>`;
 }

@@ -2,6 +2,7 @@
 import * as api from '../api.js';
 import { getKey, setKey, forgetKey, gatherSources, answer, explainError } from '../ask.js';
 import { html, raw, esc, $, toast, miniMarkdown } from '../ui.js';
+import { toInternal } from '../links.js';
 
 const history = []; // this visit's questions and answers
 
@@ -38,7 +39,7 @@ function renderAnswer(msg, sources) {
 
 function sourcesHTML(sources, used) {
   return html`<ol class="sources">${sources.map((s, i) => raw(html`<li id="src-${i + 1}" class="${used.has(i) ? 'used' : ''}">
-    <a href="${s.url}" target="_blank" rel="noopener">${s.title}</a> <span class="meta">${s.kind}${used.has(i) ? ' · cited' : ''}</span></li>`))}</ol>`;
+    <a href="${toInternal(s.url) || s.url}">${s.title}</a> <span class="meta">${s.kind}${used.has(i) ? ' · cited' : ''}</span></li>`))}</ol>`;
 }
 
 export function askView(view, arg) {
@@ -80,7 +81,7 @@ export function askView(view, arg) {
         <button type="button" class="ghost" id="kforget">Remove key from this device</button>`;
       $('#kforget').addEventListener('click', () => { forgetKey(); $('#ago').disabled = true; drawKey(); toast('Key removed.'); });
     } else {
-      keyBody.innerHTML = html`<p>Answers are written by Claude, Anthropic's AI model, using your own API key. Create one in the <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Claude Console ↗</a>. Each question usually costs a few US cents, billed to your Anthropic account.</p>
+      keyBody.innerHTML = html`<p>Answers are written by Claude, Anthropic's AI model, using your own API key. Create one in the <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener" data-external="1">Claude Console ↗</a>. Each question usually costs a few US cents, billed to your Anthropic account.</p>
         <form id="kform" class="tool-form">
           <label class="sr-only" for="kin">API key</label>
           <input id="kin" type="password" placeholder="sk-ant-…" autocomplete="off" spellcheck="false">

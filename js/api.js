@@ -210,6 +210,7 @@ export async function earthquakes() {
     time: f.properties.time,
     url: f.properties.url,
     tsunami: f.properties.tsunami,
+    felt: f.properties.felt, alert: f.properties.alert, sig: f.properties.sig, type: f.properties.type,
     lon: f.geometry.coordinates[0],
     lat: f.geometry.coordinates[1],
     depth: f.geometry.coordinates[2],
@@ -240,8 +241,9 @@ export async function hackerNews(q) {
     : 'https://hn.algolia.com/api/v1/search?tags=front_page&hitsPerPage=12';
   const d = await getJSON(u);
   return d.hits.map((h) => ({
+    id: h.objectID,
     title: h.title, url: h.url || `https://news.ycombinator.com/item?id=${h.objectID}`,
-    discuss: `https://news.ycombinator.com/item?id=${h.objectID}`,
+    discuss: `#/hn/${h.objectID}`,
     points: h.points, comments: h.num_comments, author: h.author, time: h.created_at_i * 1000,
   }));
 }
@@ -256,7 +258,8 @@ export async function blueskySearch(q) {
     avatar: p.author?.avatar,
     likes: p.likeCount, reposts: p.repostCount,
     time: Date.parse(p.record?.createdAt || p.indexedAt),
-    url: `https://bsky.app/profile/${p.author?.handle}/post/${p.uri.split('/').pop()}`,
+    uri: p.uri,
+    url: `#/post/bsky/${encodeURIComponent(p.uri)}`,
   }));
 }
 
@@ -273,7 +276,7 @@ export async function mastodonTag(tag) {
   return d.map((s) => ({
     text: stripHTML(s.content), author: s.account.display_name || s.account.username,
     handle: s.account.acct, avatar: s.account.avatar, likes: s.favourites_count, reposts: s.reblogs_count,
-    time: Date.parse(s.created_at), url: s.url,
+    time: Date.parse(s.created_at), id: s.id, url: `#/post/masto/${s.id}`,
   }));
 }
 
@@ -291,11 +294,12 @@ export async function mastodonTrends() {
 /* ───────────── Books ───────────── */
 
 export async function books(q) {
-  const d = await getJSON(`https://openlibrary.org/search.json?limit=6&fields=key,title,author_name,first_publish_year,cover_i&q=${encodeURIComponent(q)}`);
+  const d = await getJSON(`https://openlibrary.org/search.json?limit=6&fields=key,title,author_name,first_publish_year,cover_i,ia,ebook_access&q=${encodeURIComponent(q)}`);
   return (d.docs || []).map((b) => ({
+    key: b.key.split('/').pop(),
     title: b.title, author: b.author_name?.[0], year: b.first_publish_year,
     cover: b.cover_i ? `https://covers.openlibrary.org/b/id/${b.cover_i}-M.jpg` : null,
-    url: `https://openlibrary.org${b.key}`,
+    url: `#/olbook/${b.key.split('/').pop()}`,
   }));
 }
 
@@ -549,7 +553,9 @@ export async function images(q, n = 12) {
       return {
         title: p.title.replace(/^File:/, '').replace(/\.[a-z]+$/i, ''),
         thumb: ii.thumburl, full: ii.url, page: ii.descriptionurl,
-        author: strip(m.Artist?.value).slice(0, 60), license: strip(m.LicenseShortName?.value),
+        author: strip(m.Artist?.value).slice(0, 80), license: strip(m.LicenseShortName?.value),
+        description: strip(m.ImageDescription?.value).slice(0, 600), date: strip(m.DateTimeOriginal?.value).slice(0, 40),
+        large: ii.thumburl?.replace(/\/\d+px-/, '/1280px-'),
       };
     })
     .filter((x) => x.thumb);
@@ -665,7 +671,7 @@ export async function reddit(q) {
   const d = await getJSON(u, { timeout: 8000 });
   return (d.data?.children || []).map((c) => c.data).filter((p) => !p.over_18).map((p) => ({
     title: p.title, community: p.subreddit_name_prefixed, score: p.score, comments: p.num_comments,
-    url: `https://www.reddit.com${p.permalink}`, time: p.created_utc * 1000,
+    id: p.id, url: `#/post/reddit/${p.id}`, time: p.created_utc * 1000,
   }));
 }
 
@@ -677,7 +683,7 @@ export async function lemmy(q) {
   const d = await getJSON(u, { timeout: 8000 });
   return (d.posts || []).filter((x) => !x.post?.nsfw).map((x) => ({
     title: x.post.name, community: `!${x.community?.name}`, score: x.counts?.score, comments: x.counts?.comments,
-    url: x.post.ap_id, time: Date.parse(x.post.published),
+    id: x.post.id, url: `#/post/lemmy/${x.post.id}`, time: Date.parse(x.post.published),
   }));
 }
 
@@ -804,5 +810,157 @@ export async function team(name) {
   return {
     name: t.strTeam, sport: t.strSport, league: t.strLeague, country: t.strCountry, badge: t.strBadge || t.strTeamBadge || '', stadium: t.strStadium,
     last: (last.results || []).map(ev), next: (next.events || []).map(ev),
+  };
+}
+
+
+/* ════════════ Reading inside the app ════════════ */
+
+const WIKI_HOSTS = { wikipedia: 'wikipedia.org', wikivoyage: 'wikivoyage.org', wiktionary: 'wiktionary.org', commons: 'commons.wikimedia.org' };
+
+/** Full article HTML from a Wikimedia wiki (Wikipedia, Wikivoyage, Wiktionary, Commons). */
+export async function wikiArticleHTML(site, lang, title) {
+  const host = site === 'commons' ? WIKI_HOSTS.commons : `${lang}.${WIKI_HOSTS[site] || WIKI_HOSTS.wikipedia}`;
+  const slug = encodeURIComponent(title.replace(/ /g, '_'));
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 20000);
+  try {
+    const res = await fetch(`https://${host}/api/rest_v1/page/html/${slug}?redirect=true`, { signal: ctrl.signal });
+    if (!res.ok) throw new Error(`${res.status} ${host}`);
+    return { html: await res.text(), host, url: `https://${host}/wiki/${slug}` };
+  } finally { clearTimeout(t); }
+}
+
+/**
+ * Readable text of any web page, as Markdown, via the Jina Reader service (r.jina.ai), which fetches the
+ * page and strips menus and ads. Works for news articles, blogs and PDFs. Some sites block it or are paywalled.
+ */
+export async function readUrl(url) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 30000);
+  try {
+    const res = await fetch(`https://r.jina.ai/${url}`, { signal: ctrl.signal });
+    if (!res.ok) throw new Error(`${res.status} reader`);
+    const raw = await res.text();
+    const head = raw.split('Markdown Content:')[0];
+    const body = raw.includes('Markdown Content:') ? raw.slice(raw.indexOf('Markdown Content:') + 17) : raw;
+    const field = (name) => (new RegExp(`^${name}:\\s*(.*)$`, 'm').exec(head) || [])[1]?.trim() || '';
+    const text = body.trim();
+    if (text.length < 200) throw new Error('Too little text');
+    return { title: field('Title'), source: field('URL Source') || url, published: field('Published Time'), markdown: text };
+  } finally { clearTimeout(t); }
+}
+
+/** One scholarly work by key: doi:…, openalex:W…, pmid:…, arxiv:… (via OpenAlex), with full detail. */
+export async function paperByKey(key) {
+  const [kind, ...rest] = key.split(':');
+  const id = rest.join(':');
+  const path = {
+    doi: `doi:${encodeURI(id)}`, openalex: encodeURIComponent(id), pmid: `pmid:${encodeURIComponent(id)}`,
+    arxiv: `doi:10.48550/arXiv.${encodeURIComponent(id.replace(/v\d+$/, ''))}`,
+  }[kind];
+  if (!path) throw new Error('Unknown paper key');
+  const w = await getJSON(`https://api.openalex.org/works/${path}`);
+  const pmc = (w.ids?.pmcid || '').split('/').pop();
+  return {
+    ...oaWork(w),
+    pmcid: pmc ? (pmc.startsWith('PMC') ? pmc : `PMC${pmc}`) : '',
+    pmid: (w.ids?.pmid || '').split('/').pop(),
+    arxiv: (w.locations || []).map((l) => /arxiv\.org\/abs\/([^v\s]+)/.exec(l.landing_page_url || '')?.[1]).find(Boolean) || (kind === 'arxiv' ? id : ''),
+    landing: w.primary_location?.landing_page_url || '',
+    topics: (w.topics || []).slice(0, 4).map((t) => t.display_name),
+    references: w.referenced_works || [],
+    related: w.related_works || [],
+    openalex: w.id?.split('/').pop(),
+  };
+}
+
+/** Several OpenAlex works by id (W…), with the shared paper fields. */
+export async function worksByIds(ids) {
+  if (!ids.length) return [];
+  const d = await getJSON(`https://api.openalex.org/works?filter=openalex:${ids.slice(0, 25).map((x) => x.split('/').pop()).join('|')}&per-page=25&select=${OA_FIELDS}`);
+  return (d.results || []).map(oaWork);
+}
+
+/** Papers that cite a work, most cited first. */
+export async function citedBy(openalexId, per = 10) {
+  const d = await getJSON(`https://api.openalex.org/works?filter=cites:${openalexId}&sort=cited_by_count:desc&per-page=${per}&select=${OA_FIELDS}`);
+  return { total: d.meta?.count || 0, items: (d.results || []).map(oaWork) };
+}
+
+/** Full text of an open-access article from PubMed Central (Europe PMC), as JATS XML. */
+export async function pmcFullText(pmcid) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 20000);
+  try {
+    const res = await fetch(`https://www.ebi.ac.uk/europepmc/webservices/rest/${pmcid}/fullTextXML`, { signal: ctrl.signal });
+    if (!res.ok) throw new Error(`${res.status}`);
+    return new DOMParser().parseFromString(await res.text(), 'application/xml');
+  } finally { clearTimeout(t); }
+}
+
+/** A Hacker News story or comment with its whole discussion. */
+export async function hnItem(id) {
+  return getJSON(`https://hn.algolia.com/api/v1/items/${encodeURIComponent(id)}`, { timeout: 12000 });
+}
+
+/** A Bluesky post with its replies. */
+export async function bskyThread(uri) {
+  const d = await getJSON(`https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri=${encodeURIComponent(uri)}&depth=6&parentHeight=3`, { timeout: 10000 });
+  return d.thread;
+}
+
+/** A Bluesky profile and its recent posts. */
+export async function bskyProfile(handle) {
+  const [p, f] = await Promise.all([
+    getJSON(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(handle)}`, { timeout: 10000 }),
+    getJSON(`https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor=${encodeURIComponent(handle)}&limit=25&filter=posts_no_replies`, { timeout: 10000 }),
+  ]);
+  return { profile: p, feed: (f.feed || []).map((x) => x.post) };
+}
+
+/** A Mastodon post (as seen from mastodon.social) with the replies around it. */
+export async function mastoThread(id) {
+  const [st, ctx] = await Promise.all([
+    getJSON(`https://mastodon.social/api/v1/statuses/${encodeURIComponent(id)}`, { timeout: 10000 }),
+    getJSON(`https://mastodon.social/api/v1/statuses/${encodeURIComponent(id)}/context`, { timeout: 10000 }).catch(() => ({ ancestors: [], descendants: [] })),
+  ]);
+  return { status: st, ancestors: ctx.ancestors || [], descendants: ctx.descendants || [] };
+}
+
+/** A Mastodon account (user@server) and its recent public posts. */
+export async function mastoProfile(acct) {
+  const a = await getJSON(`https://mastodon.social/api/v1/accounts/lookup?acct=${encodeURIComponent(acct)}`, { timeout: 10000 });
+  const statuses = await getJSON(`https://mastodon.social/api/v1/accounts/${a.id}/statuses?limit=25&exclude_replies=true`, { timeout: 10000 }).catch(() => []);
+  return { account: a, statuses };
+}
+
+/** A Lemmy post with its comments. */
+export async function lemmyThread(id) {
+  const [p, c] = await Promise.all([
+    getJSON(`https://lemmy.world/api/v3/post?id=${encodeURIComponent(id)}`, { timeout: 10000 }),
+    getJSON(`https://lemmy.world/api/v3/comment/list?post_id=${encodeURIComponent(id)}&sort=Top&max_depth=6&limit=100&type_=All`, { timeout: 10000 }).catch(() => ({ comments: [] })),
+  ]);
+  return { post: p.post_view, comments: c.comments || [] };
+}
+
+/** A Reddit post with its comments (Reddit limits anonymous access, so this can fail). */
+export async function redditThread(id) {
+  const d = await getJSON(`https://www.reddit.com/comments/${encodeURIComponent(id)}.json?raw_json=1&limit=80&depth=6`, { timeout: 10000 });
+  return { post: d[0]?.data?.children?.[0]?.data, comments: (d[1]?.data?.children || []).filter((c) => c.kind === 't1').map((c) => c.data) };
+}
+
+/** An Open Library work: description, subjects, authors and whether a free scan exists. */
+export async function olWork(key) {
+  const w = await getJSON(`https://openlibrary.org/works/${encodeURIComponent(key)}.json`);
+  const authors = await Promise.all((w.authors || []).slice(0, 3).map((a) => getJSON(`https://openlibrary.org${a.author?.key || a.key}.json`).then((x) => x.name).catch(() => null)));
+  const scan = await getJSON(`https://openlibrary.org/search.json?q=key:/works/${encodeURIComponent(key)}&fields=ia,ebook_access,first_publish_year,public_scan_b`).then((d) => d.docs?.[0]).catch(() => null);
+  const desc = typeof w.description === 'string' ? w.description : w.description?.value || '';
+  return {
+    key, title: w.title, authors: authors.filter(Boolean), description: desc.replace(/\r/g, ''),
+    subjects: (w.subjects || []).slice(0, 10), year: scan?.first_publish_year || (w.first_publish_date || '').slice(-4) || null,
+    cover: w.covers?.[0] ? `https://covers.openlibrary.org/b/id/${w.covers[0]}-L.jpg` : '',
+    firstSentence: typeof w.first_sentence === 'string' ? w.first_sentence : w.first_sentence?.value || '',
+    scan: scan && (scan.ebook_access === 'public' || scan.public_scan_b) && scan.ia?.length ? scan.ia[0] : '',
   };
 }

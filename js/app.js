@@ -5,6 +5,8 @@ import { researchView, paperHTML, wirePapers } from './views/research.js';
 import { libraryView, bookView, archiveView, scanView } from './views/library.js';
 import { liveNav, newsView, marketsView, sportsView, newsItemsHTML, wireSummaries, stockCardHTML, finnhubKeyForm, teamHTML, forumList, elsewhereHTML } from './views/live.js';
 import { sparkline } from './chart.js';
+import { articleView, readerView, paperView, hnView, postView, profileView, olBookView, videoView, openImage, openQuake } from './views/reading.js';
+import { toInternal, isExternalOnly } from './links.js';
 import { askView } from './views/ask.js';
 import { dayView } from './views/day.js';
 import { openCite, wikiRecord, paperRecord } from './views/cite-dialog.js';
@@ -114,6 +116,14 @@ const routes = {
   pulse: () => location.replace('#/live/social'),
   planet: () => location.replace('#/live/planet'),
   archive: (arg) => archiveView(view, arg, ctx),
+  article: (arg) => articleView(view, arg, ctx),
+  reader: (arg) => readerView(view, arg, ctx),
+  paper: (arg) => paperView(view, arg, ctx),
+  hn: (arg) => hnView(view, arg, ctx),
+  post: (arg) => postView(view, arg, ctx),
+  profile: (arg) => profileView(view, arg, ctx),
+  olbook: (arg) => olBookView(view, arg, ctx),
+  video: (arg) => videoView(view, arg, ctx),
   scan: (arg) => scanView(view, arg, ctx),
   research: (arg) => researchView(view, arg, ctx),
   library: (arg) => libraryView(view, arg, ctx),
@@ -129,7 +139,7 @@ function route() {
   clearInterval(planetTimer);
   const [, name = '', ...rest] = location.hash.replace(/^#/, '').split('/');
   const fn = routes[name] || home;
-  const tab = { book: 'library', archive: 'library', scan: 'library', q: '', read: 'vault', day: 'home', pulse: 'live', planet: 'live' }[name] ?? (name || 'home');
+  const tab = { book: 'library', archive: 'library', scan: 'library', olbook: 'library', paper: 'research', q: '', read: 'vault', day: 'home', pulse: 'live', planet: 'live', hn: 'live', post: 'live', profile: 'live', article: '', reader: '', video: '' }[name] ?? (name || 'home');
   $$('.tabs a').forEach((a) => a.classList.toggle('active', a.dataset.tab === tab));
   hero.classList.toggle('compact', name !== '');
   suggest.hidden = true;
@@ -139,6 +149,20 @@ function route() {
   if (name) scrollTo({ top: 0, behavior: 'smooth' });
 }
 addEventListener('hashchange', route);
+
+// Keep people in the app: outside links open in the matching in-app page or the reader view.
+// Only platforms that can't be shown inside another app (X, Instagram, TikTok…) still open a new tab.
+document.addEventListener('click', (e) => {
+  if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  const a = e.target.closest('a[href]');
+  if (!a || a.dataset.external) return;
+  const href = a.getAttribute('href');
+  if (!/^https?:/i.test(href)) return;
+  const inside = toInternal(href);
+  if (!inside) return;
+  e.preventDefault();
+  location.hash = inside;
+}, true);
 
 /* ───────────── shared bits ───────────── */
 
@@ -151,7 +175,7 @@ function postList(posts) {
       <div>
         <div class="meta"><b>${p.author}</b> <span>@${p.handle}</span> · <span>${ago(p.time)}</span></div>
         <p>${p.text.slice(0, 280)}${p.text.length > 280 ? '…' : ''}</p>
-        <div class="meta"><a href="${p.url}" target="_blank" rel="noopener">open ↗</a> · ♥ ${compact(p.likes)} · ⟲ ${compact(p.reposts)}</div>
+        <div class="meta"><a href="${p.url}">View thread</a> · ♥ ${compact(p.likes)} · ⟲ ${compact(p.reposts)}</div>
       </div>
     </li>`))}</ul>`;
 }
@@ -159,14 +183,14 @@ function postList(posts) {
 function hnList(items) {
   if (!items?.length) return '';
   return html`<ol class="list">${items.map((h) => raw(html`
-    <li><a href="${h.url}" target="_blank" rel="noopener">${h.title}</a>
-    <span class="meta">▲ ${h.points} · <a href="${h.discuss}" target="_blank" rel="noopener">${h.comments} comments</a> · ${ago(h.time)}</span></li>`))}</ol>`;
+    <li><a href="${toInternal(h.url) || h.url}">${h.title}</a>
+    <span class="meta">▲ ${h.points} · <a href="${h.discuss}">${h.comments} comments</a> · ${ago(h.time)}</span></li>`))}</ol>`;
 }
 
 function newsList(items) {
   if (!items?.length) return '';
   return html`<ul class="list news">${items.map((a) => raw(html`
-    <li><a href="${a.url}" target="_blank" rel="noopener">${a.title}</a>
+    <li><a href="${toInternal(a.url) || a.url}">${a.title}</a>
     <span class="meta">${a.source}${a.country ? ` · ${a.country}` : ''}${a.time ? ` · ${ago(a.time)}` : ''}</span></li>`))}</ul>`;
 }
 
@@ -222,9 +246,12 @@ function home() {
   slot(quake, api.earthquakes(), (qs) => {
     const big = qs.sort((a, b) => b.mag - a.mag).slice(0, 5);
     return html`<p class="muted">${qs.length} earthquakes ≥ M4.5 this week. Strongest:</p>
-      <ul class="list">${big.map((q) => raw(html`<li><span class="mag m${Math.floor(q.mag)}">M${q.mag.toFixed(1)}</span> ${q.place} <span class="meta">${ago(q.time)}</span></li>`))}</ul>
-      <a class="more" href="#/planet">Open the live planet →</a>`;
+      <ul class="list">${big.map((q, i) => raw(html`<li><button type="button" class="linkish" data-quake="${i}"><span class="mag m${Math.floor(q.mag)}">M${q.mag.toFixed(1)}</span> ${q.place}</button> <span class="meta">${ago(q.time)}</span></li>`))}</ul>
+      <a class="more" href="#/live/planet">Open the live planet →</a>`;
   });
+  let todayQuakes = [];
+  api.earthquakes().then((qs) => { todayQuakes = qs.sort((a, b) => b.mag - a.mag); }).catch(() => {});
+  quake.addEventListener('click', (e) => { const b = e.target.closest('[data-quake]'); if (b && todayQuakes[b.dataset.quake]) openQuake(todayQuakes[b.dataset.quake]); });
   slot(hn, api.hackerNews(), (items) => hnList(items.slice(0, 7)));
 }
 
@@ -273,7 +300,7 @@ async function search(q) {
           <button id="save" class="${isSaved ? 'saved' : ''}">${isSaved ? '✓ In your Vault' : '⬇ Save for offline'}</button>
           <button class="ghost" id="cite">Cite</button>
           <a class="ghost btn" href="#/ask/${encodeURIComponent(`Tell me about ${title}`)}">Ask about this</a>
-          <a class="ghost btn" href="${s.content_urls?.desktop?.page}" target="_blank" rel="noopener">Wikipedia ↗</a>
+          <a class="ghost btn" href="#/article/wikipedia/${api.getLang()}/${encodeURIComponent(title)}">📖 Read full article</a>
           <button class="ghost" id="share">Share</button>
         </div>
         <div id="socials" class="socials"></div>
@@ -320,7 +347,10 @@ async function search(q) {
     if (!e) return '';
     $('#etype').textContent = `${e.type !== 'thing' ? e.type + ' · ' : ''}${s.description || ''}`;
     if (e.socials.length) {
-      $('#socials').innerHTML = e.socials.map((x) => html`<a href="${x.url}" target="_blank" rel="noopener" title="${x.handle}">${x.name}</a>`).join('');
+      // Bluesky, Mastodon and websites open inside the app; closed platforms (X, Instagram…) open outside.
+      $('#socials').innerHTML = e.socials.map((x) => (isExternalOnly(x.url) || /youtube\.com/.test(x.url)
+        ? html`<a href="${x.url}" target="_blank" rel="noopener" data-external="1" title="Opens ${x.name}">${x.name} ↗</a>`
+        : html`<a href="${toInternal(x.url) || x.url}" title="${x.handle}">${x.name}</a>`)).join('');
     }
     return e.facts.length ? html`<dl>${e.facts.map((f) => raw(html`<dt>${f.label}</dt><dd>${f.vals.join(', ')}</dd>`))}</dl>` : '';
   });
@@ -332,7 +362,7 @@ async function search(q) {
     if (!c) return '';
     const d = 0.6;
     return html`<iframe title="Map of ${title}" loading="lazy" src="https://www.openstreetmap.org/export/embed.html?bbox=${c.lon - d},${c.lat - d / 2},${c.lon + d},${c.lat + d / 2}&layer=mapnik&marker=${c.lat},${c.lon}"></iframe>
-      <p class="meta">${c.lat.toFixed(3)}, ${c.lon.toFixed(3)} · <a href="https://www.openstreetmap.org/?mlat=${c.lat}&mlon=${c.lon}#map=10/${c.lat}/${c.lon}" target="_blank" rel="noopener">OpenStreetMap ↗</a></p>`;
+      <p class="meta">${c.lat.toFixed(3)}, ${c.lon.toFixed(3)} · map © OpenStreetMap contributors</p>`;
   });
   const aqP = coordP.then((c) => (c ? api.airQuality(c.lat, c.lon).catch(() => null) : null));
   slot(wxEl, coordP.then(async (c) => (c ? { ...(await api.weather(c.lat, c.lon)), aq: await aqP } : null)), (w) => {
@@ -365,7 +395,7 @@ async function search(q) {
   // Places: travel guide and nearby articles.
   const isPlace = entityP.then((e) => (e && ['city', 'country', 'place'].includes(e.type) ? e : null));
   slot(travelEl, isPlace.then((e) => (e ? api.travelGuide(title) : null)), (t) => t && html`<p>${t.extract.slice(0, 600)}${t.extract.length > 600 ? '…' : ''}</p>
-    <a class="more" href="${t.url}" target="_blank" rel="noopener">Full guide on Wikivoyage ↗</a>`);
+    <a class="more" href="#/article/wikivoyage/${api.getLang()}/${encodeURIComponent(title)}">Read the full travel guide →</a>`);
   slot(nearEl, coordP.then((c) => (c ? api.nearby(c.lat, c.lon, 8) : null)), (ns) => ns?.length && html`<ul class="list">${ns.map((n) => raw(html`<li>${raw(qlink(n.title))} <span class="meta">${n.dist < 1000 ? `${Math.round(n.dist)} m` : `${(n.dist / 1000).toFixed(1)} km`} away</span></li>`))}</ul>`);
 
   // Dictionary: only for short queries that look like words, not for people or places.
@@ -375,7 +405,7 @@ async function search(q) {
       ${d.audio ? raw(html` <button type="button" class="ghost small" id="say" data-src="${d.audio}" aria-label="Play pronunciation">🔊 Listen</button>`) : ''}</div>
     <div class="dict-body">${d.meanings.slice(0, 4).map((m) => raw(html`<div class="pos"><i>${m.pos}</i><ol>${m.defs.map((x) => raw(html`<li>${x.text}${x.example ? raw(html`<span class="meta">“${x.example}”</span>`) : ''}</li>`))}</ol>
       ${m.synonyms.length ? raw(html`<span class="meta">Synonyms: ${m.synonyms.join(', ')}</span>`) : ''}</div>`))}</div>
-    <a class="more" href="${d.source}" target="_blank" rel="noopener">More on Wiktionary ↗</a>
+    <a class="more" href="#/article/wiktionary/en/${encodeURIComponent(d.word)}">Full dictionary entry →</a>
     <form class="tool-form translate-form" data-word="${d.word}">
       <label for="tr-to">Translate “${d.word}” into</label>
       <select id="tr-to">${raw([...langSel.options].filter((o) => o.value !== api.getLang()).map((o) => `<option value="${o.value}">${esc(o.title)}</option>`).join(''))}</select>
@@ -406,9 +436,14 @@ async function search(q) {
   });
 
   // Freely licensed images.
-  slot(imgEl, api.images(plainTitle, 12), (ims) => ims.length > 1 && html`<div class="gallery">${ims.map((m) => raw(html`
-    <a href="${m.page}" target="_blank" rel="noopener" title="${m.title}${m.author ? ` · ${m.author}` : ''}${m.license ? ` · ${m.license}` : ''}"><img src="${m.thumb}" alt="${m.title}" loading="lazy"></a>`))}</div>
-    <p class="meta">From Wikimedia Commons. Click an image for its author and licence.</p>`);
+  let gallery = [];
+  slot(imgEl, api.images(plainTitle, 12), (ims) => {
+    gallery = ims;
+    return ims.length > 1 && html`<div class="gallery">${ims.map((m, i) => raw(html`
+    <button type="button" class="gallery-item" data-img="${i}" title="${m.title}${m.author ? ` · ${m.author}` : ''}"><img src="${m.thumb}" alt="${m.title}" loading="lazy"></button>`))}</div>
+    <p class="meta">From Wikimedia Commons. Tap an image to see it large, with its author and licence.</p>`;
+  });
+  imgEl.addEventListener('click', (e) => { const b = e.target.closest('[data-img]'); if (b) openImage(gallery[b.dataset.img]); });
 
   // Free public-domain books by or about the topic.
   slot(freeEl, api.freeBooks(plainTitle), (r) => r.items.length && html`<ul class="list">${r.items.slice(0, 5).map((b) => raw(html`<li><a href="#/book/${b.id}">${b.title}</a><span class="meta">${b.authors.join(', ')}</span></li>`))}</ul>
@@ -432,7 +467,7 @@ async function search(q) {
     const mine = ls.filter((l) => supported.has(l.lang));
     const others = ls.filter((l) => !supported.has(l.lang));
     return html`<div class="lang-chips">${mine.map((l) => raw(html`<button type="button" class="ghost small" data-lang="${l.lang}" data-title="${l.title}" title="${l.name}"><b>${l.lang.toUpperCase()}</b> ${l.title}</button>`))}</div>
-      ${others.length ? raw(html`<details><summary class="meta">${others.length} more languages</summary><p class="meta">${raw(others.map((l) => html`<a href="https://${l.lang}.wikipedia.org/wiki/${encodeURIComponent(l.title.replace(/ /g, '_'))}" target="_blank" rel="noopener" title="${l.name}">${l.title}</a> (${l.lang})`).join(' · '))}</p></details>`) : ''}
+      ${others.length ? raw(html`<details><summary class="meta">${others.length} more languages</summary><p class="meta">${raw(others.map((l) => html`<a href="#/article/wikipedia/${l.lang}/${encodeURIComponent(l.title)}" title="${l.name}">${l.title}</a> (${l.lang})`).join(' · '))}</p></details>`) : ''}
       <p class="meta">Tap a language to read about ${title} in it.</p>`;
   });
   langsEl.addEventListener('click', (e) => {
@@ -474,7 +509,7 @@ async function search(q) {
   });
   slot(hnEl, api.hackerNews(title.replace(/\s*\(.*\)$/, '')), hnList);
   slot(booksEl, api.books(title.replace(/\s*\(.*\)$/, '')), (bs) => bs.length && html`<ul class="books">${bs.map((b) => raw(html`
-    <li><a href="${b.url}" target="_blank" rel="noopener">${b.cover ? raw(html`<img src="${b.cover}" alt="" loading="lazy">`) : raw('<span class="nocover">📘</span>')}
+    <li><a href="${b.url}">${b.cover ? raw(html`<img src="${b.cover}" alt="" loading="lazy">`) : raw('<span class="nocover">📘</span>')}
     <b>${b.title}</b><span class="meta">${b.author || ''}${b.year ? ` · ${b.year}` : ''}</span></a></li>`))}</ul>`);
   slot(relEl, api.wikiSearch(q, 9), (rs) => {
     const list = rs.filter((r) => r.title !== title).slice(0, 8);
@@ -527,6 +562,9 @@ async function reader(id) {
   const a = await vault.get(id).catch(() => null);
   if (!a) { view.innerHTML = '<section class="empty"><h2>Not in your Vault.</h2></section>'; return; }
   if (a.kind === 'book') { location.replace(a.id.startsWith('scan:') ? `#/scan/${encodeURIComponent(a.id.slice(5))}` : `#/book/${a.id.slice(5)}`); return; }
+  if (a.kind === 'web') { location.replace(`#/reader/${encodeURIComponent(a.url)}`); return; }
+  if (a.html && a.site) { location.replace(`#/article/${a.site}/${a.lang}/${encodeURIComponent(a.title)}`); return; }
+  if (a.kind === 'paper' && navigator.onLine && a.doi) { location.replace(`#/paper/${encodeURIComponent(`doi:${a.doi}`)}`); return; }
   if (a.kind === 'paper') {
     document.title = `${a.title} — rexx.space`;
     view.innerHTML = html`<article class="reader">
@@ -535,8 +573,8 @@ async function reader(id) {
       <p class="lead">${a.authors.join(', ')}</p>
       <p class="meta">${a.venue || ''}${a.year ? ` · ${a.year}` : ''}${a.cited != null ? ` · cited by ${compact(a.cited)}` : ''}${a.doi ? ` · doi:${a.doi}` : ''}</p>
       <div class="actions"><button class="ghost" id="pcite">Cite</button>
-        <a class="ghost btn" href="${a.url}" target="_blank" rel="noopener">Publisher page ↗</a>
-        ${a.pdf ? raw(html`<a class="ghost btn" href="${a.pdf}" target="_blank" rel="noopener">Free PDF ↗</a>`) : ''}</div>
+        ${a.pdf ? raw(html`<a class="ghost btn" href="#/reader/${encodeURIComponent(a.pdf)}">📖 Read the PDF</a>`) : ''}</div>
+      ${a.fullText ? raw(`<div class="prose full-text"><h3>Full text</h3>${a.fullText}</div>`) : ''}
       <div class="prose"><h3>Abstract</h3>${a.abstract ? raw(html`<p>${a.abstract}</p>`) : raw('<p class="muted">No abstract is available for this paper.</p>')}</div>
     </article>`;
     $('#pcite').addEventListener('click', () => openCite(paperRecord(a)));
@@ -548,9 +586,9 @@ async function reader(id) {
     <h2>${a.title}</h2><p class="muted">${a.description}</p>
     ${a.image ? raw(html`<img class="portrait" src="${a.image}" alt="">`) : ''}
     ${a.facts?.length ? raw(html`<dl class="facts-inline">${a.facts.map((f) => raw(html`<dt>${f.label}</dt><dd>${f.vals.join(', ')}</dd>`))}</dl>`) : ''}
-    ${a.socials?.length ? raw(html`<div class="socials">${a.socials.map((x) => raw(html`<a href="${x.url}" target="_blank" rel="noopener">${x.name}</a>`))}</div>`) : ''}
+    ${a.socials?.length ? raw(html`<div class="socials">${a.socials.map((x) => raw(html`<a href="${toInternal(x.url) || x.url}" ${raw(toInternal(x.url) ? '' : 'target="_blank" rel="noopener" data-external="1"')}>${x.name}</a>`))}</div>`) : ''}
     <div class="prose">${raw(textToHTML(a.text || a.extract))}</div>
-    <p class="meta">Source: <a href="${a.url}" target="_blank" rel="noopener">Wikipedia</a> (CC BY-SA 4.0) · <button type="button" class="ghost small" id="rcite">Cite</button></p>
+    <p class="meta">Source: Wikipedia (CC BY-SA 4.0) · <a href="#/article/wikipedia/${a.lang || 'en'}/${encodeURIComponent(a.title)}">Read the latest version</a> · <button type="button" class="ghost small" id="rcite">Cite</button></p>
   </article>`;
   $('#rcite').addEventListener('click', () => openCite({ kind: 'web', title: a.title, container: 'Wikipedia', publisher: 'Wikimedia Foundation', url: a.url }));
 }
@@ -619,10 +657,12 @@ function planet(el = view) {
     pins.insertAdjacentHTML('beforeend', qs.map((q) => {
       const p = mercator(q.lat, q.lon);
       const size = Math.max(6, (q.mag - 4) * 9);
-      return html`<a class="pin quake" href="${q.url}" target="_blank" rel="noopener" style="left:${(p.x * 100).toFixed(3)}%;top:${(p.y * 100).toFixed(3)}%;--s:${size}px" title="M${q.mag} · ${q.place}"></a>`;
+      return html`<button type="button" class="pin quake" data-q="${q.id}" style="left:${(p.x * 100).toFixed(3)}%;top:${(p.y * 100).toFixed(3)}%;--s:${size}px" title="M${q.mag} · ${q.place}" aria-label="Magnitude ${q.mag} earthquake, ${q.place}"></button>`;
     }).join(''));
+    const byId = Object.fromEntries(qs.map((q) => [q.id, q]));
+    el.addEventListener('click', (e) => { const b = e.target.closest('[data-q]'); if (b && byId[b.dataset.q]) openQuake(byId[b.dataset.q]); });
     listEl.innerHTML = html`<ul class="list cols">${qs.sort((a, b) => b.mag - a.mag).slice(0, 16).map((q) => raw(html`
-      <li><span class="mag m${Math.floor(q.mag)}">M${q.mag.toFixed(1)}</span> <a href="${q.url}" target="_blank" rel="noopener">${q.place || 'Unknown'}</a>
+      <li><span class="mag m${Math.floor(q.mag)}">M${q.mag.toFixed(1)}</span> <button type="button" class="linkish" data-q="${q.id}">${q.place || 'Unknown'}</button>
       <span class="meta">${ago(q.time)} · depth ${Math.round(q.depth)} km${q.tsunami ? ' · 🌊 tsunami alert' : ''}</span></li>`))}</ul>`;
   }).catch(() => { listEl.innerHTML = '<p class="muted">USGS feed unavailable right now.</p>'; });
 
@@ -648,11 +688,11 @@ async function vaultView() {
   try { items = await vault.all(); } catch { /* ignore */ }
   const total = items.reduce((n, i) => n + JSON.stringify(i).length, 0);
   view.innerHTML = html`<section class="vault">
-    <header class="section-head"><h2>📦 Your Vault</h2><p class="muted">${items.length} saved item${items.length === 1 ? '' : 's'} (${items.filter((i) => !i.kind).length} articles, ${items.filter((i) => i.kind === 'paper').length} papers, ${items.filter((i) => i.kind === 'book').length} books) · ${bytes(total)} on this device · readable with no connection.</p></header>
+    <header class="section-head"><h2>📦 Your Vault</h2><p class="muted">${items.length} saved item${items.length === 1 ? '' : 's'} (${items.filter((i) => !i.kind).length} articles, ${items.filter((i) => i.kind === 'web').length} web pages, ${items.filter((i) => i.kind === 'paper').length} papers, ${items.filter((i) => i.kind === 'book').length} books) · ${bytes(total)} on this device · readable with no connection.</p></header>
     ${items.length ? raw(html`<div class="shelf">${items.map((a) => raw(html`
       <a class="tile" href="#/read/${encodeURIComponent(a.id)}">
-        ${a.image ? raw(html`<img src="${a.image}" alt="">`) : raw(`<span class="ph">${a.kind === 'paper' ? '📄' : a.kind === 'book' ? '📗' : '✦'}</span>`)}
-        <b>${a.title}</b><span class="meta">${a.kind === 'paper' ? 'Paper · ' : a.kind === 'book' ? 'Book · ' : ''}${a.description || (a.lang || '').toUpperCase()}</span>
+        ${a.image ? raw(html`<img src="${a.image}" alt="">`) : raw(`<span class="ph">${a.kind === 'paper' ? '📄' : a.kind === 'book' ? '📗' : a.kind === 'web' ? '🌐' : '✦'}</span>`)}
+        <b>${a.title}</b><span class="meta">${a.kind === 'paper' ? 'Paper · ' : a.kind === 'book' ? 'Book · ' : a.kind === 'web' ? 'Web page · ' : ''}${a.description || (a.lang || '').toUpperCase()}</span>
         <button class="x" data-id="${a.id}" title="Remove" aria-label="Remove ${a.title}">✕</button>
       </a>`))}</div>`)
     : raw('<div class="empty"><h3>Nothing saved yet.</h3><p class="muted">Search anything and tap <b>Save for offline</b>, or grab a whole pack from the <a href="#/offline">Offline</a> tab.</p></div>')}
@@ -720,7 +760,7 @@ async function offlineView() {
               <tr><td>News, socials, weather, quakes</td><td class="no">❌ No</td><td>Live by definition. Offline you see the last snapshot, timestamped.</td></tr>
             </tbody>
           </table>
-          <p class="muted">*Mesh networks, satellite messengers and “sneakernet” USB drops (think Kiwix hotspots in schools) can move fresh data without the internet — that's the frontier. See <a href="https://github.com/rehxn027/rexx.space/blob/main/docs/OFFLINE.md" target="_blank" rel="noopener">docs/OFFLINE.md</a> for the full roadmap.</p>
+          <p class="muted">*Mesh networks, satellite messengers and “sneakernet” USB drops (think Kiwix hotspots in schools) can move fresh data without the internet — that's the frontier. See <a href="https://github.com/rehxn027/rexx.space/blob/main/docs/OFFLINE.md" target="_blank" rel="noopener" data-external="1">docs/OFFLINE.md</a> for the full roadmap.</p>
         </div>
       </article>
     </div>
