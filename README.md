@@ -121,6 +121,19 @@ Ask sends your question, plus the Wikipedia articles and paper abstracts it foun
 - The key stays in your browser and is sent only to `api.anthropic.com`. rexx.space has no server. Choose "Remember on this device" only on a device you trust.
 - If Claude's safety system declines a question, the request automatically falls back to another model (`fallbacks: "default"`).
 
+## 📖 Everything opens inside the app
+
+Tapping a result never sends you off to another website:
+
+- **Wikipedia, Wikivoyage and Wiktionary** articles open in the in-app reader with their images, tables, infobox and contents; links inside them stay in the app.
+- **News articles, blogs and other pages** open in **Reader view**, which pulls the page's text into the app (via the free [Jina Reader](https://jina.ai/reader) service; the reader service sees the address of the page being read). If a site blocks it or is paywalled, the app says so and offers a Claude summary instead.
+- **Papers** have their own page: abstract, references, papers that cite it, related work, and the **full text** when it's openly available (PubMed Central, arXiv, or the open-access PDF).
+- **Discussions** from Hacker News, Bluesky, Mastodon, Lemmy and Reddit open as threads with their replies; Bluesky and Mastodon profiles open in the app too.
+- **Books** (Open Library, Project Gutenberg, Internet Archive scans), **images** (large view with author and licence), **earthquakes** (details, map and nearby places) and **YouTube videos** all show in the app.
+- Any other link is caught by a safety net and opened in Reader view. Only X, Instagram, TikTok, Facebook, Threads and LinkedIn open in a new tab, because they don't let other apps show their content; those buttons are marked ↗.
+
+Saved web pages, papers (with full text) and articles (with images' captions and tables) all go into the Vault for offline reading.
+
 ## 🔑 Optional keys
 
 Everything works without an account except three features, which use free or pay-as-you-go keys that each user adds in the app. Keys stay in that user's browser and go only to the service they belong to.
@@ -150,6 +163,8 @@ js/ask.js             Ask: gathers sources and calls Claude through the Anthropi
 js/cite.js            APA / MLA / Chicago / Harvard / BibTeX formatter
 js/views/             Research, Library, Ask, Live (news, markets, sports), On this day and the Cite dialog
 js/chart.js           sparklines and line charts with hover tooltips
+js/links.js           maps outside links to in-app pages; safe HTML and Markdown rendering
+js/views/reading.js   article reader, reader view, paper pages, threads, profiles, books, video, detail panels
 js/vendor/            the Anthropic SDK bundled as one browser module
 js/vault.js           IndexedDB storage for offline articles
 js/themes.js          theme list + picker

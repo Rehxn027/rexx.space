@@ -270,3 +270,27 @@ export const stockSearch = live;
 export const LEAGUES = [{ id: 'soccer/eng.1', name: 'Premier League' }, { id: 'basketball/nba', name: 'NBA' }];
 export const scoreboard = live;
 export const team = live;
+
+/* v4: in-app reading. Needs the live internet too. */
+export async function wikiArticleHTML(site, lang, title) {
+  // The demo can show its sample topics as full articles; anything else needs the live wiki.
+  const t = site === 'wikipedia' ? find(title) : null;
+  if (!t) throw new LiveOnly();
+  const esc = (x) => x.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const body = t.text.split(/\n+/).map((l) => { const h = /^==\s*(.+?)\s*==$/.exec(l.trim()); return h ? `<h2>${esc(h[1])}</h2>` : `<p>${esc(l)}</p>`; }).join('');
+  const others = TOPICS.filter((x) => x !== t).slice(0, 3).map((x) => `<a href="./${encodeURIComponent(x.title.replace(/ /g, '_'))}">${esc(x.title)}</a>`).join(', ');
+  return { html: `<html><body><figure><img src="${t.img}" alt=""><figcaption>${esc(t.description)}</figcaption></figure>${body}<h2>See also</h2><p>${others}</p></body></html>`, host: 'en.wikipedia.org', url: `https://en.wikipedia.org/wiki/${encodeURIComponent(t.title)}` };
+}
+export const readUrl = live;
+export const paperByKey = live;
+export const worksByIds = live;
+export const citedBy = live;
+export const pmcFullText = live;
+export const hnItem = live;
+export const bskyThread = live;
+export const bskyProfile = live;
+export const mastoThread = live;
+export const mastoProfile = live;
+export const lemmyThread = live;
+export const redditThread = live;
+export const olWork = live;

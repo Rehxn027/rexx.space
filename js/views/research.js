@@ -4,18 +4,26 @@ import * as vault from '../vault.js';
 import { html, raw, esc, $, compact, toast, slot, card } from '../ui.js';
 import { openCite, paperRecord } from './cite-dialog.js';
 
+/** Stable key for a paper's in-app page: DOI where known, else arXiv, OpenAlex or PubMed ids. */
+export function paperKey(p) {
+  if (p.doi) return `doi:${p.doi}`;
+  if (p.source === 'arXiv' && p.id) return p.id;
+  if (/^W\d+$/.test(p.id || '')) return `openalex:${p.id}`;
+  if (p.pmid) return `pmid:${p.pmid}`;
+  return p.id ? `openalex:${p.id}` : '';
+}
+
 /** One paper as a list item, with Abstract / Cite / Save actions. Used here and on search pages. */
 export function paperHTML(p, i) {
   const authors = p.authors.length > 3 ? `${p.authors.slice(0, 3).join(', ')} et al.` : p.authors.join(', ');
   return html`<li class="paper" data-i="${i}">
-    <a class="paper-title" href="${p.url}" target="_blank" rel="noopener">${p.title}</a>
+    <a class="paper-title" href="#/paper/${encodeURIComponent(paperKey(p))}">${p.title}</a>
     <span class="meta">${authors || 'Unknown authors'}${p.year ? ` · ${p.year}` : ''}${p.venue ? ` · ${p.venue}` : ''}</span>
     <span class="chips">
       ${p.cited != null ? raw(html`<span class="chip">Cited by ${compact(p.cited)}</span>`) : ''}
       ${p.oa ? raw('<span class="chip ok-chip">Free to read</span>') : ''}
-      ${p.pdf ? raw(html`<a class="chip" href="${p.pdf}" target="_blank" rel="noopener">PDF ↗</a>`) : ''}
+      ${p.pdf ? raw(html`<a class="chip" href="#/reader/${encodeURIComponent(p.pdf)}">Read PDF</a>`) : ''}
       ${p.doi ? raw(html`<span class="chip mono">doi:${p.doi}</span>`) : ''}
-      ${p.pmid ? raw(html`<a class="chip" href="https://pubmed.ncbi.nlm.nih.gov/${p.pmid}/" target="_blank" rel="noopener">PubMed ↗</a>`) : ''}
       ${p.source && p.source !== 'OpenAlex' ? raw(html`<span class="chip">${p.source}</span>`) : ''}
     </span>
     ${p.abstract ? raw(html`<details><summary>Abstract</summary><p>${p.abstract}</p></details>`) : ''}
@@ -26,6 +34,9 @@ export function paperHTML(p, i) {
 /** Wire Cite/Save buttons inside a container that lists `items` via paperHTML. */
 export function wirePapers(root, items, onSaved = () => {}) {
   root.addEventListener('click', async (e) => {
+    // Remember the paper so its page can show it even if OpenAlex has no record (e.g. Crossref-only works).
+    const t = e.target.closest('.paper-title');
+    if (t) { const p = items[Number(t.closest('.paper').dataset.i)]; try { sessionStorage.setItem(`rexx-paper:${paperKey(p)}`, JSON.stringify(p)); } catch { /* ignore */ } return; }
     const b = e.target.closest('[data-act]');
     const li = e.target.closest('.paper');
     if (!b || !li) return;

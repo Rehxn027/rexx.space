@@ -84,7 +84,6 @@ export async function bookView(view, arg, { refreshVaultCount }) {
         <div class="actions">
           <button id="bsave" class="${saved ? 'saved' : ''}">${saved ? '✓ In your Vault' : '⬇ Save for offline'}</button>
           <button class="ghost" id="bcite">Cite</button>
-          <a class="ghost btn" href="${b.url}" target="_blank" rel="noopener">Project Gutenberg ↗</a>
         </div>
       </div>
     </section>
@@ -95,7 +94,7 @@ export async function bookView(view, arg, { refreshVaultCount }) {
   let text = saved?.fullText || '';
   if (!text) {
     try { text = await api.bookText(b); } catch {
-      textEl.innerHTML = html`<p class="muted">The full text couldn't be loaded inside the app. You can read it on <a href="${b.html || b.url}" target="_blank" rel="noopener">Project Gutenberg ↗</a>.</p>`;
+      textEl.innerHTML = html`<p class="muted">The plain-text version couldn't be loaded. <a href="#/reader/${encodeURIComponent(b.html || b.url)}">Read the book's web edition in the app</a> instead.</p>`;
     }
   }
   if (text) {
@@ -199,7 +198,6 @@ export async function scanView(view, arg, { refreshVaultCount }) {
         <div class="actions">
           <button id="ssave" class="${saved ? 'saved' : ''}">${saved ? '✓ In your Vault' : '⬇ Save text for offline'}</button>
           <button class="ghost" id="scite">Cite</button>
-          <a class="ghost btn" href="${b.url}" target="_blank" rel="noopener">Internet Archive ↗</a>
         </div>
       </div>
     </section>
